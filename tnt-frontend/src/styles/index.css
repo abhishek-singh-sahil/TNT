@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink antialiased;
+    font-feature-settings: 'kern';
+  }
+  ::selection {
+    @apply bg-ink text-paper;
+  }
+  :focus-visible {
+    outline: 2px solid #111111;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .container-tnt {
+    @apply max-w-container mx-auto px-4 msm:px-6 xl:px-10;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 text-xs font-semibold uppercase tracking-widest2 transition-colors duration-200 rounded-card whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-paper hover:bg-black;
+  }
+  .btn-outline {
+    @apply btn bg-transparent text-ink border border-ink hover:bg-ink hover:text-paper;
+  }
+  .btn-light {
+    @apply btn bg-paper text-ink border border-line hover:border-ink;
+  }
+
+  .section {
+    @apply py-12 msm:py-16 xl:py-20;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-widest2 text-muted;
+  }
+
+  .h-display {
+    @apply font-display font-bold uppercase tracking-tight leading-[1.05];
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
