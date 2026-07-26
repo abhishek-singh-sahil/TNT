@@ -7,12 +7,14 @@ import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { addItem } from '../store/cartSlice';
 import { toggleWishlist } from '../store/wishlistSlice';
+import { selectCurrencySymbol } from '../store/settingsSlice';
 import { productApi, reviewApi } from '../api/services';
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const currencySymbol = useSelector(selectCurrencySymbol);
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -206,8 +208,8 @@ export default function ProductDetail() {
             <div className="flex items-baseline gap-3 border-y border-line py-4">
               {product.discountPercentage > 0 ? (
                 <>
-                  <span className="text-3xl font-extrabold text-ink">₹{product.finalPrice?.toLocaleString()}</span>
-                  <span className="text-lg text-muted line-through">₹{product.basePrice.toLocaleString()}</span>
+                  <span className="text-3xl font-extrabold text-ink">{currencySymbol}{product.finalPrice?.toLocaleString()}</span>
+                  <span className="text-lg text-muted line-through">{currencySymbol}{product.basePrice.toLocaleString()}</span>
                   <span
                     className="text-xs font-bold text-paper px-2.5 py-1 rounded"
                     style={{ backgroundColor: product.saleCampaign?.badgeColor || '#ff0000' }}
@@ -217,9 +219,9 @@ export default function ProductDetail() {
                 </>
               ) : (
                 <>
-                  <span className="text-3xl font-extrabold text-ink">₹{product.basePrice.toLocaleString()}</span>
+                  <span className="text-3xl font-extrabold text-ink">{currencySymbol}{product.basePrice.toLocaleString()}</span>
                   {product.discountPrice && (
-                    <span className="text-lg text-muted line-through">₹{product.discountPrice.toLocaleString()}</span>
+                    <span className="text-lg text-muted line-through">{currencySymbol}{product.discountPrice.toLocaleString()}</span>
                   )}
                 </>
               )}

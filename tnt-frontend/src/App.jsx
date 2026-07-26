@@ -1,4 +1,8 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { adminApi } from './api/services';
+import { setSettings } from './store/settingsSlice';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
@@ -30,10 +34,27 @@ import AdminRoles from './pages/admin/AdminRoles';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMediaLibrary from './pages/admin/AdminMediaLibrary';
 import AdminMarketing from './pages/admin/AdminMarketing';
+import AdminStaff from './pages/admin/AdminStaff';
 import ComingSoon from './pages/ComingSoon';
 
 
 export default function App() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await adminApi.getSettingsPublic();
+        if (res.success && res.settings) {
+          dispatch(setSettings(res.settings));
+        }
+      } catch (err) {
+        console.error('Failed to load system settings on storefront:', err);
+      }
+    }
+    loadSettings();
+  }, [dispatch]);
+
   return (
     <Routes>
       {/* Storefront Layout */}
@@ -100,6 +121,7 @@ export default function App() {
         <Route path="media" element={<AdminMediaLibrary />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="staff" element={<AdminStaff />} />
       </Route>
 
     </Routes>

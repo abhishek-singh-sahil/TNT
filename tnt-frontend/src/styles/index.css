@@ -57,7 +57,6 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -66,3 +65,21 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Infinite Marquee Scroll Animation */
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+  will-change: transform;
+}
+

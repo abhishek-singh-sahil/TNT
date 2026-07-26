@@ -28,9 +28,13 @@ const authSlice = createSlice({
       localStorage.removeItem('tnt_user')
       localStorage.removeItem('tnt_access_token')
     },
+    updateUser(state, action) {
+      state.user = { ...state.user, ...action.payload }
+      localStorage.setItem('tnt_user', JSON.stringify(state.user))
+    },
   },
 })
 
-export const { setCredentials, logout } = authSlice.actions
+export const { setCredentials, logout, updateUser } = authSlice.actions
 export default authSlice.reducer
 export const selectIsAuthenticated = (state) => Boolean(state.auth.accessToken)

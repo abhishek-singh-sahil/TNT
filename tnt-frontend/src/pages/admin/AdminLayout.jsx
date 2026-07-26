@@ -34,7 +34,9 @@ export default function AdminLayout() {
   const [darkMode, setDarkMode] = useState(false);
   const { user } = useSelector((state) => state.auth);
 
-  if (!user || user.role?.name !== 'ADMIN') {
+  const isAdminUser = user && (user.role?.name === 'ADMIN' || user.role?.name === 'SUPER_ADMIN');
+
+  if (!isAdminUser) {
     return (
       <div className="bg-paper min-h-screen flex items-center justify-center p-6 text-center">
         <div className="bg-stone border border-line rounded-xl p-8 max-w-sm w-full space-y-4">
@@ -61,8 +63,7 @@ export default function AdminLayout() {
     );
   }
 
-
-  const navItems = [
+  const allNavItems = [
     { label: 'Overview Dashboard', path: '/admin', icon: LayoutGrid },
     { label: 'Homepage CMS', path: '/admin/cms', icon: Sliders },
     { label: 'Product Catalog', path: '/admin/products', icon: Package },
@@ -72,9 +73,17 @@ export default function AdminLayout() {
     { label: 'Reviews & Ratings', path: '/admin/reviews', icon: Star },
     { label: 'Coupons & Marketing', path: '/admin/coupons', icon: Tag },
     { label: 'Media Library', path: '/admin/media', icon: Image },
-    { label: 'Role & Permissions', path: '/admin/roles', icon: ShieldCheck },
-    { label: 'System Settings', path: '/admin/settings', icon: Settings },
+    { label: 'Staff Management', path: '/admin/staff', icon: Users, superOnly: true },
+    { label: 'Role & Permissions', path: '/admin/roles', icon: ShieldCheck, superOnly: true },
+    { label: 'System Settings', path: '/admin/settings', icon: Settings, superOnly: true },
   ];
+
+  const navItems = allNavItems.filter(item => {
+    if (item.superOnly) {
+      return user?.role?.name === 'SUPER_ADMIN';
+    }
+    return true;
+  });
 
   return (
     <div className={`min-h-screen flex ${darkMode ? 'bg-zinc-950 text-zinc-100 dark' : 'bg-stone text-ink'}`}>
@@ -127,11 +136,11 @@ export default function AdminLayout() {
         <div className="p-4 border-t border-line bg-stone/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-ink text-paper font-extrabold text-xs flex items-center justify-center">
-              AD
+              {user?.firstName?.substring(0, 2).toUpperCase() || 'AD'}
             </div>
             <div>
-              <div className="text-xs font-bold text-ink">TNT Administrator</div>
-              <div className="text-[10px] text-muted">admin@tntclothing.com</div>
+              <div className="text-xs font-bold text-ink">{user?.firstName} {user?.lastName || ''}</div>
+              <div className="text-[10px] text-muted">{user?.email}</div>
             </div>
           </div>
           <button onClick={() => dispatch(logout())} className="p-1 text-muted hover:text-red-600">

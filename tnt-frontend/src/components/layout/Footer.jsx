@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Twitter } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { selectSettings } from '../../store/settingsSlice';
 import { cmsApi } from '../../api/services';
 import toast from 'react-hot-toast';
 
@@ -28,6 +30,7 @@ const about = [
 
 export default function Footer() {
   const [email, setEmail] = useState('');
+  const settings = useSelector(selectSettings);
 
   const handleNewsletterSubscribe = async (e) => {
     e.preventDefault();
@@ -67,8 +70,8 @@ export default function Footer() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest2 mb-4">Contact</p>
           <ul className="space-y-2.5 text-sm text-paper/70">
-            <li>hello@tntclothing.com</li>
-            <li>+91 98765 43210</li>
+            <li>{settings?.siteEmail}</li>
+            <li>{settings?.sitePhone}</li>
             <li>Mon - Sat (10AM - 7PM)</li>
           </ul>
 

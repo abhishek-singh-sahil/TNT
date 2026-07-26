@@ -1,21 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TrustStrip from '../components/common/TrustStrip';
-import { ShieldCheck, Plus, Check, Edit2, QrCode, Lock, ShoppingBag, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Plus, Check, Edit2, QrCode, Lock, ShoppingBag, ArrowRight, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearCart } from '../store/cartSlice';
+import { selectSettings, selectCurrencySymbol } from '../store/settingsSlice';
+import { addressApi, paymentApi, orderApi } from '../api/services';
 
 export default function Checkout() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.items);
+  const settings = useSelector(selectSettings);
+  const currencySymbol = useSelector(selectCurrencySymbol);
 
-  const [selectedAddress, setSelectedAddress] = useState('home');
+  const { user } = useSelector((state) => state.auth);
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [selectedShipping, setSelectedShipping] = useState('standard');
-  const [selectedPayment, setSelectedPayment] = useState('upi');
-  const [upiId, setUpiId] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState('card');
   const [promoApplied, setPromoApplied] = useState(true);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [newAddressForm, setNewAddressForm] = useState({
+    type: 'Home',
+    fullName: '',
+    phone: '',
+    street: '',
+    locality: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'India'
+  });
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch (e) {}
+    };
+  }, []);
+
+  const fetchAddresses = async () => {
+    try {
+      const res = await addressApi.getAddresses();
+      if (res.success) {
+        setAddresses(res.addresses);
+        const defAddr = res.addresses.find((a) => a.isDefault) || res.addresses[0];
+        if (defAddr) {
+          setSelectedAddressId(defAddr.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load addresses:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAddresses();
+  }, []);
+
+  const handleAddAddress = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await addressApi.createAddress({
+        ...newAddressForm,
+        isDefault: addresses.length === 0
+      });
+      if (res.success) {
+        toast.success('Address added successfully!');
+        setShowAddressModal(false);
+        setNewAddressForm({
+          type: 'Home',
+          fullName: '',
+          phone: '',
+          street: '',
+          locality: '',
+          city: '',
+          state: '',
+          postalCode: '',
+          country: 'India'
+        });
+        fetchAddresses();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to add address');
+    }
+  };
 
   // Default items if cart empty in demo
   const displayItems = cartItems.length > 0 ? cartItems : [
@@ -58,12 +136,123 @@ export default function Checkout() {
   const shippingFee = selectedShipping === 'express' ? 149 : selectedShipping === 'sameday' ? 249 : 0;
   const total = subtotal - discount + shippingFee;
 
-  const handlePlaceOrder = () => {
-    toast.success('Order placed successfully! Redirecting to confirmation...');
-    dispatch(clearCart());
-    setTimeout(() => {
-      navigate('/account/orders/TNT12567/track');
-    }, 1500);
+  const handlePlaceOrder = async () => {
+    if (!selectedAddressId) {
+      toast.error('Please add and select a shipping address first');
+      return;
+    }
+
+    if (isPlacingOrder) return;
+    setIsPlacingOrder(true);
+
+    try {
+      const checkoutItems = displayItems.map((i) => ({
+        productVariantId: i.variantId || i.productVariantId || i.id,
+        quantity: i.qty || 1,
+        productName: i.name,
+      }));
+
+      if (selectedPayment === 'cod') {
+        toast.loading('Placing your order...');
+        const res = await orderApi.createOrder({
+          addressId: selectedAddressId,
+          items: checkoutItems,
+          paymentMethod: 'COD',
+          couponCode: promoApplied ? 'WELCOME10' : null,
+          shippingFee,
+        });
+        toast.dismiss();
+        if (res.success) {
+          toast.success('Order placed successfully!');
+          dispatch(clearCart());
+          navigate(`/account/orders/${res.order.orderNumber}/track`);
+        } else {
+          toast.error(res.message || 'Failed to place order');
+        }
+        setIsPlacingOrder(false);
+      } else {
+        // Online Payment via Razorpay
+        toast.loading('Initializing payment gateway...');
+        const orderRes = await paymentApi.createRazorpayOrder({
+          amount: total,
+          currency: settings?.currency || 'INR',
+          receipt: `rcpt_${Date.now()}`
+        });
+        toast.dismiss();
+
+        if (!orderRes.success) {
+          toast.error('Payment gateway initialization failed');
+          setIsPlacingOrder(false);
+          return;
+        }
+
+        const options = {
+          key: orderRes.key || settings?.razorpayKeyId,
+          amount: orderRes.order.amount,
+          currency: orderRes.order.currency,
+          name: settings?.siteName || 'TNT Luxury Streetwear',
+          description: 'Secure Checkout Payment',
+          order_id: orderRes.order.id,
+          handler: async function (response) {
+            toast.loading('Processing payment verification...');
+            try {
+              const res = await orderApi.createOrder({
+                addressId: selectedAddressId,
+                items: checkoutItems,
+                paymentMethod: selectedPayment.toUpperCase(),
+                couponCode: promoApplied ? 'WELCOME10' : null,
+                shippingFee,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+              toast.dismiss();
+              if (res.success) {
+                toast.success('Payment verified & order placed!');
+                dispatch(clearCart());
+                navigate(`/account/orders/${res.order.orderNumber}/track`);
+              } else {
+                toast.error(res.message || 'Payment verification failed');
+              }
+            } catch (err) {
+              toast.dismiss();
+              toast.error(err.message || 'Failed to verify online order');
+            } finally {
+              setIsPlacingOrder(false);
+            }
+          },
+          prefill: {
+            name: `${user?.firstName || ''} ${user?.lastName || ''}`,
+            email: user?.email || '',
+            contact: user?.phone || '',
+          },
+          theme: {
+            color: '#111111',
+          },
+          modal: {
+            ondismiss: function () {
+              setIsPlacingOrder(false);
+              toast.error('Payment cancelled by user');
+            }
+          }
+        };
+
+        if (selectedPayment === 'upi') {
+          options.prefill.method = 'upi';
+        } else if (selectedPayment === 'card') {
+          options.prefill.method = 'card';
+        } else if (selectedPayment === 'netbanking') {
+          options.prefill.method = 'netbanking';
+        }
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error(error.message || 'An error occurred during checkout');
+      setIsPlacingOrder(false);
+    }
   };
 
   return (
@@ -136,62 +325,45 @@ export default function Checkout() {
               <p className="text-xs text-muted mb-4">Add a new address or select from your saved addresses</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {/* Home Address Card */}
-                <div
-                  onClick={() => setSelectedAddress('home')}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedAddress === 'home' ? 'border-ink bg-stone/50' : 'border-line hover:border-ink/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedAddress === 'home' ? 'border-ink' : 'border-line'}`}>
-                        {selectedAddress === 'home' && <div className="w-2 h-2 rounded-full bg-ink" />}
+                {addresses.map((addr) => (
+                  <div
+                    key={addr.id}
+                    onClick={() => setSelectedAddressId(addr.id)}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedAddressId === addr.id ? 'border-ink bg-stone/50' : 'border-line hover:border-ink/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedAddressId === addr.id ? 'border-ink' : 'border-line'}`}>
+                          {selectedAddressId === addr.id && <div className="w-2 h-2 rounded-full bg-ink" />}
+                        </div>
+                        <span className="font-extrabold text-xs text-ink uppercase">{addr.type}</span>
+                        {addr.isDefault && (
+                          <span className="bg-ink/10 text-ink text-[10px] font-bold px-2 py-0.5 rounded uppercase">DEFAULT</span>
+                        )}
                       </div>
-                      <span className="font-extrabold text-xs text-ink uppercase">Home</span>
-                      <span className="bg-ink/10 text-ink text-[10px] font-bold px-2 py-0.5 rounded uppercase">DEFAULT</span>
                     </div>
-                    <button className="text-xs text-muted hover:text-ink flex items-center gap-1">
-                      <Edit2 className="w-3 h-3" /> EDIT
-                    </button>
-                  </div>
-                  <div className="text-xs text-ink space-y-0.5">
-                    <p className="font-bold">Akhtar Raza</p>
-                    <p>23, Park Street, Civil Lines</p>
-                    <p>Kanpur, Uttar Pradesh - 208001</p>
-                    <p>India</p>
-                    <p className="text-muted pt-1">+91 98765 43210</p>
-                  </div>
-                </div>
-
-                {/* Office Address Card */}
-                <div
-                  onClick={() => setSelectedAddress('office')}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedAddress === 'office' ? 'border-ink bg-stone/50' : 'border-line hover:border-ink/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedAddress === 'office' ? 'border-ink' : 'border-line'}`}>
-                        {selectedAddress === 'office' && <div className="w-2 h-2 rounded-full bg-ink" />}
-                      </div>
-                      <span className="font-extrabold text-xs text-ink uppercase">Office</span>
+                    <div className="text-xs text-ink space-y-0.5">
+                      <p className="font-bold">{addr.fullName}</p>
+                      <p>{addr.street}</p>
+                      {addr.locality && <p>{addr.locality}</p>}
+                      <p>{addr.city}, {addr.state} - {addr.postalCode}</p>
+                      <p>{addr.country}</p>
+                      <p className="text-muted pt-1">{addr.phone}</p>
                     </div>
-                    <button className="text-xs text-muted hover:text-ink flex items-center gap-1">
-                      <Edit2 className="w-3 h-3" /> EDIT
-                    </button>
                   </div>
-                  <div className="text-xs text-ink space-y-0.5">
-                    <p className="font-bold">Akhtar Raza</p>
-                    <p>TNT Clothing Pvt. Ltd., 15, Industrial Area</p>
-                    <p>Panki, Kanpur, Uttar Pradesh - 208020</p>
-                    <p>Phone: +91 98765 43210</p>
-                  </div>
-                </div>
+                ))}
+                {addresses.length === 0 && (
+                  <p className="text-xs text-muted col-span-2 py-4">No shipping addresses saved yet. Please add one below.</p>
+                )}
               </div>
 
-              <button className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1 hover:underline">
+              <button
+                type="button"
+                onClick={() => setShowAddressModal(true)}
+                className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1 hover:underline"
+              >
                 <Plus className="w-4 h-4" /> Add New Address
               </button>
             </div>
@@ -244,7 +416,7 @@ export default function Checkout() {
                       <div className="text-xs text-muted">Delivery in 1-2 business days</div>
                     </div>
                   </div>
-                  <span className="font-extrabold text-xs text-ink">₹149</span>
+                  <span className="font-extrabold text-xs text-ink">{currencySymbol}149</span>
                 </label>
 
                 {/* Same Day */}
@@ -266,7 +438,7 @@ export default function Checkout() {
                       <div className="text-xs text-muted">Delivery within 24 hours</div>
                     </div>
                   </div>
-                  <span className="font-extrabold text-xs text-ink">₹249</span>
+                  <span className="font-extrabold text-xs text-ink">{currencySymbol}249</span>
                 </label>
               </div>
 
@@ -305,40 +477,7 @@ export default function Checkout() {
                     <div className="flex items-center gap-2 font-bold text-xs text-purple-700">UPI</div>
                   </label>
 
-                  {selectedPayment === 'upi' && (
-                    <div className="p-6 border-t border-line bg-paper text-center space-y-4">
-                      <p className="text-xs font-semibold text-muted">Scan & pay using any UPI app</p>
-
-                      {/* QR Code Graphic Box with TNT branding */}
-                      <div className="w-44 h-44 border-2 border-ink rounded-xl mx-auto p-2 bg-paper flex items-center justify-center shadow-md relative">
-                        <img
-                          src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=tntclothing@upi&pn=TNT%20Clothing&am=5621"
-                          alt="UPI QR Code"
-                          className="w-full h-full object-contain"
-                        />
-                        <div className="absolute bg-paper border border-ink px-2 py-0.5 rounded font-extrabold text-[10px]">
-                          TNT
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-muted">or enter UPI ID</div>
-                      <div className="max-w-xs mx-auto flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="name@upi"
-                          value={upiId}
-                          onChange={(e) => setUpiId(e.target.value)}
-                          className="w-full border border-line rounded px-3 py-2 text-xs focus:outline-none focus:border-ink"
-                        />
-                        <button
-                          onClick={() => toast.success('UPI Payment Request Sent!')}
-                          className="px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded"
-                        >
-                          Verify
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {selectedPayment === 'upi'}
                 </div>
 
                 {/* Credit / Debit Card */}
@@ -443,7 +582,7 @@ export default function Checkout() {
                       </div>
                     </div>
                     <span className="font-extrabold text-ink shrink-0">
-                      ₹{(item.price * item.qty).toLocaleString()}
+                      {currencySymbol}{(item.price * item.qty).toLocaleString()}
                     </span>
                   </div>
                 ))}
@@ -453,29 +592,29 @@ export default function Checkout() {
               <div className="space-y-2.5 text-xs pt-4 border-t border-line">
                 <div className="flex justify-between text-muted">
                   <span>Subtotal</span>
-                  <span className="font-bold text-ink">₹{subtotal.toLocaleString()}</span>
+                  <span className="font-bold text-ink">{currencySymbol}{subtotal.toLocaleString()}</span>
                 </div>
                 {promoApplied && (
                   <div className="flex justify-between text-emerald-700">
                     <span>Discount (WELCOME10)</span>
-                    <span className="font-bold">- ₹{discount}</span>
+                    <span className="font-bold">- {currencySymbol}{discount}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-muted">
                   <span>Shipping</span>
                   <span className="font-bold text-emerald-700">
-                    {shippingFee === 0 ? 'FREE' : `₹${shippingFee}`}
+                    {shippingFee === 0 ? 'FREE' : `${currencySymbol}${shippingFee}`}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-extrabold text-ink pt-3 border-t border-line">
                   <span>Total <span className="text-[10px] font-normal text-muted block">(Inclusive of all taxes)</span></span>
-                  <span className="text-lg">₹{total.toLocaleString()}</span>
+                  <span className="text-lg">{currencySymbol}{total.toLocaleString()}</span>
                 </div>
               </div>
 
               {/* Green Savings Callout */}
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-center text-xs font-bold text-emerald-800">
-                🟢 You are saving ₹625 on this order!
+                🟢 You are saving {currencySymbol}625 on this order!
               </div>
 
               {/* Place Order Primary CTA */}
@@ -512,6 +651,140 @@ export default function Checkout() {
       <div className="mt-16">
         <TrustStrip />
       </div>
+
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4">
+          <div className="bg-paper border border-line rounded-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-line pb-3 mb-4">
+              <h3 className="font-extrabold text-ink text-sm uppercase tracking-wider">ADD NEW ADDRESS</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddressModal(false)}
+                className="text-xs text-muted hover:text-ink font-bold"
+              >
+                ✕ CLOSE
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAddress} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">Address Label</label>
+                  <select
+                    value={newAddressForm.type}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, type: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                  >
+                    <option value="Home">Home</option>
+                    <option value="Office">Office</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.fullName}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, fullName: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-ink uppercase mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  required
+                  value={newAddressForm.phone}
+                  onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
+                  className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                  placeholder="+91 99999 88888"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-ink uppercase mb-1">Street Address</label>
+                <input
+                  type="text"
+                  required
+                  value={newAddressForm.street}
+                  onChange={(e) => setNewAddressForm({ ...newAddressForm, street: e.target.value })}
+                  className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                  placeholder="Flat No, Building, Street Name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">City</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.city}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, city: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                    placeholder="Kanpur"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">State</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.state}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, state: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                    placeholder="Uttar Pradesh"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">Postal Code</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.postalCode}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, postalCode: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                    placeholder="208001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-ink uppercase mb-1">Country</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.country}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, country: e.target.value })}
+                    className="w-full border border-line bg-stone px-3 py-2 rounded text-xs text-ink focus:border-ink focus:ring-0"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-line flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddressModal(false)}
+                  className="px-4 py-2 border border-line rounded text-xs font-bold text-ink hover:bg-stone"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-ink text-paper rounded text-xs font-bold hover:bg-ink/90"
+                >
+                  SAVE ADDRESS
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

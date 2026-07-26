@@ -5,6 +5,7 @@ export const authApi = {
   register: (userData) => apiClient.post('/auth/register', userData),
   logout: () => apiClient.post('/auth/logout'),
   getMe: () => apiClient.get('/auth/me'),
+  updateProfile: (payload) => apiClient.put('/auth/profile', payload),
 };
 
 export const productApi = {
@@ -16,6 +17,7 @@ export const productApi = {
   getSizes: () => apiClient.get('/sizes'),
   updateProduct: (id, payload) => apiClient.put(`/products/${id}`, payload),
   getCollections: () => apiClient.get('/collections'),
+  getCategories: () => apiClient.get('/categories'),
 };
 
 export const lookbookApi = {
@@ -40,6 +42,13 @@ export const orderApi = {
 export const paymentApi = {
   createRazorpayOrder: (payload) => apiClient.post('/payments/razorpay/create-order', payload),
   verifyRazorpayPayment: (payload) => apiClient.post('/payments/razorpay/verify', payload),
+};
+
+export const addressApi = {
+  getAddresses: () => apiClient.get('/addresses'),
+  createAddress: (payload) => apiClient.post('/addresses', payload),
+  updateAddress: (id, payload) => apiClient.put(`/addresses/${id}`, payload),
+  deleteAddress: (id) => apiClient.delete(`/addresses/${id}`),
 };
 
 export const reviewApi = {
@@ -75,6 +84,16 @@ export const adminApi = {
   updateCategory: (id, payload) => apiClient.put(`/admin/categories/${id}`, payload),
   deleteCategory: (id) => apiClient.delete(`/admin/categories/${id}`),
   createCollection: (payload) => apiClient.post('/collections', payload),
+  getStaff: () => apiClient.get('/admin/staff'),
+  createStaff: (payload) => apiClient.post('/admin/staff', payload),
+  updateStaff: (id, payload) => apiClient.put(`/admin/staff/${id}`, payload),
+  deleteStaff: (id) => apiClient.delete(`/admin/staff/${id}`),
+  getRoles: () => apiClient.get('/admin/roles'),
+  getPermissions: () => apiClient.get('/admin/permissions'),
+  updateRolePermissions: (id, payload) => apiClient.put(`/admin/roles/${id}/permissions`, payload),
+  getSettings: () => apiClient.get('/admin/settings'),
+  updateSettings: (payload) => apiClient.put('/admin/settings', payload),
+  getSettingsPublic: () => apiClient.get('/settings'),
 };
 
 export const marketingApi = {

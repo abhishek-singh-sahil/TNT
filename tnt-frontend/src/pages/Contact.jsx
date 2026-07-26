@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { selectSettings } from '../store/settingsSlice';
 import TrustStrip from '../components/common/TrustStrip';
 import { Mail, Phone, MessageSquare, MapPin, Send, ExternalLink, ShieldCheck, ChevronDown, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Contact() {
+  const settings = useSelector(selectSettings);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -80,7 +83,7 @@ export default function Contact() {
             </div>
             <div>
               <span className="text-[10px] font-bold text-muted uppercase">EMAIL US</span>
-              <div className="font-extrabold text-sm text-ink my-1">hello@tntclothing.com</div>
+              <div className="font-extrabold text-sm text-ink my-1">{settings?.siteEmail}</div>
               <p className="text-xs text-muted">We reply within 12 hours</p>
             </div>
           </div>
@@ -91,7 +94,7 @@ export default function Contact() {
             </div>
             <div>
               <span className="text-[10px] font-bold text-muted uppercase">CALL US</span>
-              <div className="font-extrabold text-sm text-ink my-1">+91 98765 43210</div>
+              <div className="font-extrabold text-sm text-ink my-1">{settings?.sitePhone}</div>
               <p className="text-xs text-muted">Mon - Sat (10AM - 7PM)</p>
             </div>
           </div>

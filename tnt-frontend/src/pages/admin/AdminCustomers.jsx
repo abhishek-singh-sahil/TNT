@@ -10,12 +10,14 @@ export default function AdminCustomers() {
 
   // Selected User Modal CRUD state
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [dbRoles, setDbRoles] = useState([]);
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     rewardPoints: '0',
+    roleId: '',
   });
 
   // Email Blast Modal state
@@ -43,8 +45,20 @@ export default function AdminCustomers() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const res = await adminApi.getRoles();
+      if (res.success && res.roles) {
+        setDbRoles(res.roles);
+      }
+    } catch (err) {
+      console.error('Failed to load roles:', err);
+    }
+  };
+
   useEffect(() => {
     fetchCustomers();
+    fetchRoles();
   }, []);
 
   const handleOpenEditModal = (cust) => {
@@ -55,6 +69,7 @@ export default function AdminCustomers() {
       email: cust.email,
       phone: cust.phone || '',
       rewardPoints: String(cust.rewardPoints || 0),
+      roleId: cust.roleId || '',
     });
   };
 
@@ -280,6 +295,19 @@ export default function AdminCustomers() {
                     className="w-full border border-line rounded px-3 py-2 text-xs text-ink bg-stone focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-muted mb-1">Account Security Role</label>
+                <select
+                  value={editForm.roleId}
+                  onChange={(e) => setEditForm({ ...editForm, roleId: e.target.value })}
+                  className="w-full border border-line rounded px-3 py-2 text-xs text-ink bg-stone focus:outline-none font-semibold text-ink"
+                >
+                  {dbRoles.map(role => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2">

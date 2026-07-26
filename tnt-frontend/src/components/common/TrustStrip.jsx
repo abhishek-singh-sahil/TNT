@@ -1,14 +1,20 @@
-import { ShieldCheck, RotateCcw, Lock, Truck, Headphones } from 'lucide-react'
-
-const items = [
-  { icon: ShieldCheck, title: 'Premium Quality', subtitle: 'Built to last, made to feel good.' },
-  { icon: RotateCcw, title: 'Easy Returns', subtitle: '14-day hassle-free returns.' },
-  { icon: Lock, title: 'Secure Payments', subtitle: '100% safe & secure payments.' },
-  { icon: Truck, title: 'Free Shipping', subtitle: 'On orders above ₹1999.' },
-  { icon: Headphones, title: 'Customer Support', subtitle: "We're here to help." },
-]
+import { ShieldCheck, RotateCcw, Lock, Truck, Headphones } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { selectCurrencySymbol, selectSettings } from '../../store/settingsSlice';
 
 export default function TrustStrip() {
+  const currencySymbol = useSelector(selectCurrencySymbol);
+  const settings = useSelector(selectSettings);
+  const freeShippingMin = settings?.freeShippingMin || 1999;
+
+  const items = [
+    { icon: ShieldCheck, title: 'Premium Quality', subtitle: 'Built to last, made to feel good.' },
+    { icon: RotateCcw, title: 'Easy Returns', subtitle: '14-day hassle-free returns.' },
+    { icon: Lock, title: 'Secure Payments', subtitle: '100% safe & secure payments.' },
+    { icon: Truck, title: 'Free Shipping', subtitle: `On orders above ${currencySymbol}${freeShippingMin}.` },
+    { icon: Headphones, title: 'Customer Support', subtitle: "We're here to help." },
+  ];
+
   return (
     <div className="bg-stone border-y border-line">
       <div className="container-tnt py-6 grid grid-cols-2 msm:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -23,5 +29,5 @@ export default function TrustStrip() {
         ))}
       </div>
     </div>
-  )
+  );
 }

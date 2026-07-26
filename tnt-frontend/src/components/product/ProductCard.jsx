@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { Heart, Star } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleWishlist, selectIsWishlisted } from '../../store/wishlistSlice';
+import { selectCurrencySymbol } from '../../store/settingsSlice';
 import toast from 'react-hot-toast';
 
 export default function ProductCard({ product }) {
   const dispatch = useDispatch();
   const isWishlisted = useSelector(selectIsWishlisted(product.id));
+  const currencySymbol = useSelector(selectCurrencySymbol);
 
   // Extract unique colors from variants dynamically
   const uniqueColors = product.variants
@@ -81,10 +83,10 @@ export default function ProductCard({ product }) {
       <div className="mt-3 space-y-1">
         <p className="text-sm font-medium truncate text-ink">{product.name}</p>
         <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-ink">₹{price.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-semibold text-ink">{currencySymbol}{price.toLocaleString('en-IN')}</p>
           {oldPrice && (
             <p className="text-xs text-muted line-through">
-              ₹{oldPrice.toLocaleString('en-IN')}
+              {currencySymbol}{oldPrice.toLocaleString('en-IN')}
             </p>
           )}
         </div>

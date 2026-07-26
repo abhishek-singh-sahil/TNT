@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { selectSettings, selectCurrencySymbol } from '../store/settingsSlice';
 import { removeItem, updateQty, clearCart } from '../store/cartSlice';
 import TrustStrip from '../components/common/TrustStrip';
 import { Trash2, ArrowRight, ShoppingBag, Tag, Check } from 'lucide-react';
@@ -11,7 +12,9 @@ export default function Cart() {
   const cartItems = useSelector((state) => state.cart.items);
 
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const freeShippingThreshold = 1999;
+  const settings = useSelector(selectSettings);
+  const currencySymbol = useSelector(selectCurrencySymbol);
+  const freeShippingThreshold = settings?.freeShippingMin || 1999;
   const progressPercent = Math.min(100, (subtotal / freeShippingThreshold) * 100);
 
   return (
@@ -50,7 +53,7 @@ export default function Cart() {
                   <span>
                     {subtotal >= freeShippingThreshold
                       ? '✓ You qualify for FREE Standard Shipping!'
-                      : `Add ₹${(freeShippingThreshold - subtotal).toLocaleString()} more for FREE Shipping`}
+                      : `Add ${currencySymbol}${(freeShippingThreshold - subtotal).toLocaleString()} more for FREE Shipping`}
                   </span>
                   <span>{Math.round(progressPercent)}%</span>
                 </div>
@@ -72,7 +75,7 @@ export default function Cart() {
                       <div>
                         <h3 className="font-bold text-ink text-sm">{item.name}</h3>
                         <p className="text-xs text-muted">{item.color} | {item.size}</p>
-                        <p className="text-xs font-extrabold text-ink mt-1">₹{item.price.toLocaleString()}</p>
+                        <p className="text-xs font-extrabold text-ink mt-1">{currencySymbol}{item.price.toLocaleString()}</p>
                       </div>
                     </div>
 
@@ -95,7 +98,7 @@ export default function Cart() {
                       </div>
 
                       <div className="text-right">
-                        <div className="font-extrabold text-sm text-ink">₹{(item.price * item.qty).toLocaleString()}</div>
+                        <div className="font-extrabold text-sm text-ink">{currencySymbol}{(item.price * item.qty).toLocaleString()}</div>
                       </div>
 
                       <button
@@ -123,17 +126,17 @@ export default function Cart() {
                 <div className="space-y-3 text-xs">
                   <div className="flex justify-between text-muted">
                     <span>Subtotal</span>
-                    <span className="font-bold text-ink">₹{subtotal.toLocaleString()}</span>
+                    <span className="font-bold text-ink">{currencySymbol}{subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-muted">
                     <span>Estimated Shipping</span>
                     <span className="font-bold text-emerald-700">
-                      {subtotal >= freeShippingThreshold ? 'FREE' : '₹99'}
+                      {subtotal >= freeShippingThreshold ? 'FREE' : `${currencySymbol}99`}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-extrabold text-ink pt-3 border-t border-line">
                     <span>Total Amount</span>
-                    <span className="text-lg">₹{subtotal.toLocaleString()}</span>
+                    <span className="text-lg">{currencySymbol}{subtotal.toLocaleString()}</span>
                   </div>
                 </div>
 
