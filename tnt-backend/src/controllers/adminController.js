@@ -253,7 +253,7 @@ export const updateOrderTrackingAdmin = async (req, res) => {
 export const updateCustomerAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phone, rewardPoints } = req.body;
+    const { firstName, lastName, email, phone, rewardPoints, roleId } = req.body;
     const customer = await prisma.user.update({
       where: { id },
       data: {
@@ -261,7 +261,8 @@ export const updateCustomerAdmin = async (req, res) => {
         lastName,
         email,
         phone,
-        rewardPoints: parseInt(rewardPoints || '0')
+        rewardPoints: rewardPoints !== undefined ? parseInt(rewardPoints || '0') : undefined,
+        roleId: roleId || undefined
       }
     });
     return res.json({ success: true, message: 'Customer profile updated successfully', customer });
@@ -441,6 +442,258 @@ export const deleteCategoryAdmin = async (req, res) => {
   }
 };
 
+// Staff Management Controllers
+export const getStaffAdmin = async (req, res) => {
+  try {
+    const staff = await prisma.user.findMany({
+      where: {
+        role: {
+          name: {
+            in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT']
+          }
+        },
+        deletedAt: null
+      },
+      include: {
+        role: true
+      }
+    });
+    return res.json({ success: true, staff });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch staff members', error: error.message });
+  }
+};
 
+export const createStaffAdmin = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, roleId, password } = req.body;
+    if (!firstName || !email || !password || !roleId) {
+      return res.status(400).json({ success: false, message: 'Missing required staff fields' });
+    }
+    const { default: bcrypt } = await import('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const staff = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        passwordHash,
+        isVerified: true,
+        roleId
+      },
+      include: { role: true }
+    });
+    return res.status(201).json({ success: true, message: 'Staff member created successfully', staff });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create staff member', error: error.message });
+  }
+};
 
+export const updateStaffAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, phone, roleId, password } = req.body;
+    const data = { firstName, lastName, email, phone, roleId };
+    if (password) {
+      const { default: bcrypt } = await import('bcryptjs');
+      data.passwordHash = await bcrypt.hash(password, 10);
+    }
+    const staff = await prisma.user.update({
+      where: { id },
+      data,
+      include: { role: true }
+    });
+    return res.json({ success: true, message: 'Staff member profile updated successfully', staff });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update staff member', error: error.message });
+  }
+};
 
+export const deleteStaffAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user.id === id) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+    }
+    await prisma.user.delete({ where: { id } });
+    return res.json({ success: true, message: 'Staff member deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete staff member', error: error.message });
+  }
+};
+
+// Roles & Permissions Controllers
+const ensureDefaultPermissions = async () => {
+  const defaultPermissions = [
+    { name: 'view_products', description: 'Can View Products' },
+    { name: 'edit_products', description: 'Can Edit / Create Products' },
+    { name: 'delete_products', description: 'Can Delete Products' },
+    { name: 'manage_orders', description: 'Can Manage Orders & Shipping' },
+    { name: 'access_analytics', description: 'Can Access Financial Analytics' },
+    { name: 'edit_homepage', description: 'Can Edit Homepage CMS' },
+    { name: 'manage_users', description: 'Can Manage Users & Staff' },
+    { name: 'manage_coupons', description: 'Can Create & Manage Coupons' },
+  ];
+
+  for (const perm of defaultPermissions) {
+    await prisma.permission.upsert({
+      where: { name: perm.name },
+      update: { description: perm.description },
+      create: { name: perm.name, description: perm.description }
+    });
+  }
+};
+
+export const getRolesAdmin = async (req, res) => {
+  try {
+    await ensureDefaultPermissions();
+    const roles = await prisma.role.findMany({
+      include: { permissions: true }
+    });
+    return res.json({ success: true, roles });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch roles', error: error.message });
+  }
+};
+
+export const getPermissionsAdmin = async (req, res) => {
+  try {
+    await ensureDefaultPermissions();
+    const permissions = await prisma.permission.findMany();
+    return res.json({ success: true, permissions });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch permissions', error: error.message });
+  }
+};
+
+export const updateRolePermissionsAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissionKeys } = req.body;
+
+    const perms = await prisma.permission.findMany({
+      where: { name: { in: permissionKeys } }
+    });
+
+    const role = await prisma.role.update({
+      where: { id },
+      data: {
+        permissions: {
+          set: [],
+          connect: perms.map(p => ({ id: p.id }))
+        }
+      },
+      include: { permissions: true }
+    });
+    return res.json({ success: true, message: 'Role permissions updated successfully', role });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update role permissions', error: error.message });
+  }
+};
+export const getSettingsAdmin = async (req, res) => {
+  try {
+    let settings = await prisma.systemSetting.findUnique({
+      where: { id: 'default-settings' }
+    });
+
+    if (!settings) {
+      settings = await prisma.systemSetting.create({
+        data: {
+          id: 'default-settings',
+          siteName: 'TNT Luxury Streetwear',
+          siteEmail: 'contact@tntclothing.com',
+          sitePhone: '+91 99999 88888',
+          currency: 'INR',
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
+          razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
+          razorpayEnabled: true,
+          codEnabled: true,
+          freeShippingMin: 1999
+        }
+      });
+    }
+
+    return res.json({ success: true, settings });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch settings', error: error.message });
+  }
+};
+
+export const updateSettingsAdmin = async (req, res) => {
+  try {
+    const {
+      siteName,
+      siteEmail,
+      sitePhone,
+      currency,
+      razorpayKeyId,
+      razorpayKeySecret,
+      razorpayEnabled,
+      codEnabled,
+      freeShippingMin
+    } = req.body;
+
+    const settings = await prisma.systemSetting.upsert({
+      where: { id: 'default-settings' },
+      update: {
+        siteName,
+        siteEmail,
+        sitePhone,
+        currency,
+        razorpayKeyId,
+        razorpayKeySecret,
+        razorpayEnabled: razorpayEnabled !== undefined ? Boolean(razorpayEnabled) : undefined,
+        codEnabled: codEnabled !== undefined ? Boolean(codEnabled) : undefined,
+        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : undefined
+      },
+      create: {
+        id: 'default-settings',
+        siteName: siteName || 'TNT Luxury Streetwear',
+        siteEmail: siteEmail || 'contact@tntclothing.com',
+        sitePhone: sitePhone || '+91 99999 88888',
+        currency: currency || 'INR',
+        razorpayKeyId: razorpayKeyId || '',
+        razorpayKeySecret: razorpayKeySecret || '',
+        razorpayEnabled: razorpayEnabled !== undefined ? Boolean(razorpayEnabled) : true,
+        codEnabled: codEnabled !== undefined ? Boolean(codEnabled) : true,
+        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : 1999
+      }
+    });
+
+    return res.json({ success: true, message: 'System settings updated successfully', settings });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update settings', error: error.message });
+  }
+};
+
+export const getSettingsPublic = async (req, res) => {
+  try {
+    let settings = await prisma.systemSetting.findUnique({
+      where: { id: 'default-settings' }
+    });
+
+    if (!settings) {
+      settings = await prisma.systemSetting.create({
+        data: {
+          id: 'default-settings',
+          siteName: 'TNT Luxury Streetwear',
+          siteEmail: 'contact@tntclothing.com',
+          sitePhone: '+91 99999 88888',
+          currency: 'INR',
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
+          razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
+          razorpayEnabled: true,
+          codEnabled: true,
+          freeShippingMin: 1999
+        }
+      });
+    }
+
+    // Exclude secret key
+    const { razorpayKeySecret, ...publicSettings } = settings;
+    return res.json({ success: true, settings: publicSettings });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch public settings', error: error.message });
+  }
+};

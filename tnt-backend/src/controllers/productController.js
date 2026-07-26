@@ -59,27 +59,89 @@ export const getProducts = async (req, res) => {
     }
 
     if (category) {
-      where.categories = { some: { slug: category } };
+      const categorySlugs = typeof category === 'string' ? category.split(',') : Array.isArray(category) ? category : [category];
+      where.categories = {
+        some: {
+          slug: { in: categorySlugs }
+        }
+      };
     }
 
     if (collection) {
       where.collection = { slug: collection };
     }
 
-    if (gender === 'men') {
-      where.genderMen = true;
-    } else if (gender === 'women') {
-      where.genderWomen = true;
-    } else if (gender === 'accessories') {
-      where.isAccessories = true;
+    if (gender) {
+      const genderList = typeof gender === 'string' ? gender.split(',') : Array.isArray(gender) ? gender : [gender];
+      const genderConditions = [];
+      if (genderList.includes('men')) {
+        genderConditions.push({ genderMen: true });
+      }
+      if (genderList.includes('women')) {
+        genderConditions.push({ genderWomen: true });
+      }
+      if (genderList.includes('accessories')) {
+        genderConditions.push({ isAccessories: true });
+      }
+      if (genderList.includes('unisex')) {
+        genderConditions.push({ genderMen: true, genderWomen: true });
+      }
+      if (genderConditions.length > 0) {
+        // If there's already an OR condition (like from search), combine them
+        if (where.OR) {
+          where.AND = [
+            { OR: where.OR },
+            { OR: genderConditions }
+          ];
+          delete where.OR;
+        } else {
+          where.OR = genderConditions;
+        }
+      }
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-      ];
+      const tokens = search.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length > 0) {
+        where.OR = tokens.flatMap(token => [
+          { name: { contains: token, mode: 'insensitive' } },
+          { description: { contains: token, mode: 'insensitive' } },
+          { sku: { contains: token, mode: 'insensitive' } },
+          {
+            categories: {
+              some: {
+                OR: [
+                  { name: { contains: token, mode: 'insensitive' } },
+                  { slug: { contains: token, mode: 'insensitive' } }
+                ]
+              }
+            }
+          },
+          {
+            variants: {
+              some: {
+                OR: [
+                  { color: { name: { contains: token, mode: 'insensitive' } } },
+                  { size: { name: { contains: token, mode: 'insensitive' } } }
+                ]
+              }
+            }
+          }
+        ]);
+      }
+    }
+
+    if (color || size) {
+      const variantFilter = {};
+      if (color) {
+        variantFilter.color = { name: { equals: color, mode: 'insensitive' } };
+      }
+      if (size) {
+        variantFilter.size = { name: { equals: size, mode: 'insensitive' } };
+      }
+      where.variants = {
+        some: variantFilter
+      };
     }
 
     if (minPrice || maxPrice) {
@@ -322,11 +384,89 @@ export const updateProduct = async (req, res) => {
 
     const slug = name ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : undefined;
 
-    if (variants) {
-      await prisma.productVariant.deleteMany({ where: { productId: id } });
-    }
     if (images) {
       await prisma.productImage.deleteMany({ where: { productId: id } });
+    }
+
+    if (variants) {
+      const existingVariants = await prisma.productVariant.findMany({
+        where: { productId: id },
+        include: { color: true, size: true }
+      });
+
+      for (const v of variants) {
+        let targetColorId = v.colorId;
+        if (!targetColorId && v.colorName) {
+          const colRecord = await prisma.color.upsert({
+            where: { name: v.colorName },
+            update: {},
+            create: { name: v.colorName, hexCode: v.colorHex || '#ccc' }
+          });
+          targetColorId = colRecord.id;
+        }
+
+        const sizeRecord = await prisma.size.upsert({
+          where: { name: v.sizeName },
+          update: {},
+          create: { name: v.sizeName, code: v.sizeName }
+        });
+        const targetSizeId = sizeRecord.id;
+
+        const existing = existingVariants.find(
+          ev => ev.colorId === targetColorId && ev.sizeId === targetSizeId
+        );
+
+        if (existing) {
+          await prisma.productVariant.update({
+            where: { id: existing.id },
+            data: {
+              sku: v.sku || existing.sku,
+              price: parseFloat(v.price || basePrice || existing.price),
+              stock: parseInt(v.stock !== undefined ? v.stock : existing.stock)
+            }
+          });
+        } else {
+          await prisma.productVariant.create({
+            data: {
+              productId: id,
+              sku: v.sku || `${sku || 'SKU'}-${v.colorName || 'COL'}-${v.sizeName}`,
+              price: parseFloat(v.price || basePrice || 0),
+              stock: parseInt(v.stock || 50),
+              colorId: targetColorId,
+              sizeId: targetSizeId
+            }
+          });
+        }
+      }
+
+      const incomingCombos = [];
+      for (const v of variants) {
+        let colorId = v.colorId;
+        if (!colorId && v.colorName) {
+          const col = await prisma.color.findUnique({ where: { name: v.colorName } });
+          if (col) colorId = col.id;
+        }
+        const sz = await prisma.size.findUnique({ where: { name: v.sizeName } });
+        if (sz && colorId) {
+          incomingCombos.push({ colorId, sizeId: sz.id });
+        }
+      }
+
+      const toDelete = existingVariants.filter(ev => 
+        !incomingCombos.some(ic => ic.colorId === ev.colorId && ic.sizeId === ev.sizeId)
+      );
+
+      for (const td of toDelete) {
+        try {
+          await prisma.productVariant.delete({ where: { id: td.id } });
+        } catch (delErr) {
+          console.log(`Variant ${td.id} is in order item. Setting stock to 0.`);
+          await prisma.productVariant.update({
+            where: { id: td.id },
+            data: { stock: 0 }
+          });
+        }
+      }
     }
 
     const product = await prisma.product.update({
@@ -357,25 +497,6 @@ export const updateProduct = async (req, res) => {
             url,
             position: idx,
             isPrimary: idx === 0
-          }))
-        } : undefined,
-        variants: variants && variants.length > 0 ? {
-          create: variants.map(v => ({
-            sku: v.sku || `${sku || 'SKU'}-${v.colorName || 'COL'}-${v.sizeName}`,
-            price: parseFloat(v.price || basePrice),
-            stock: parseInt(v.stock || 50),
-            color: v.colorId ? { connect: { id: v.colorId } } : {
-              connectOrCreate: {
-                where: { name: v.colorName },
-                create: { name: v.colorName, hexCode: v.colorHex || '#ccc' }
-              }
-            },
-            size: {
-              connectOrCreate: {
-                where: { name: v.sizeName },
-                create: { name: v.sizeName, code: v.sizeName }
-              }
-            }
           }))
         } : undefined
       },
@@ -421,6 +542,23 @@ export const createCollection = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Collection created successfully', collection });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to create collection', error: error.message });
+  }
+};
+
+export const getCategoriesPublic = async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      where: { status: 'ACTIVE' },
+      include: {
+        _count: {
+          select: { products: { where: { deletedAt: null } } }
+        }
+      },
+      orderBy: { displayOrder: 'asc' }
+    });
+    return res.json({ success: true, categories });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch categories', error: error.message });
   }
 };
 

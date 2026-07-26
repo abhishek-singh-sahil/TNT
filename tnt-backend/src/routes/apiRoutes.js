@@ -1,7 +1,8 @@
 import express from 'express';
-import { register, login, getProfile, logout } from '../controllers/authController.js';
-import { getProducts, getProductBySlug, createProduct, deleteProduct, getColors, getSizes, createColor, updateProduct, getCollections, createCollection } from '../controllers/productController.js';
+import { register, login, getProfile, logout, updateProfile } from '../controllers/authController.js';
+import { getProducts, getProductBySlug, createProduct, deleteProduct, getColors, getSizes, createColor, updateProduct, getCollections, createCollection, getCategoriesPublic } from '../controllers/productController.js';
 import { createOrder, getUserOrders, getOrderTracking, createReturnRequest } from '../controllers/orderController.js';
+import { getAddresses, createAddress, updateAddress, deleteAddress } from '../controllers/addressController.js';
 
 import { getMyReviews, createReview, updateReview, deleteReview } from '../controllers/reviewController.js';
 import { getLookbooks } from '../controllers/lookbookController.js';
@@ -35,7 +36,17 @@ import {
   getReturnsAdmin,
   updateReturnRequestAdmin,
   updateCategoryAdmin,
-  deleteCategoryAdmin
+  deleteCategoryAdmin,
+  getStaffAdmin,
+  createStaffAdmin,
+  updateStaffAdmin,
+  deleteStaffAdmin,
+  getRolesAdmin,
+  getPermissionsAdmin,
+  updateRolePermissionsAdmin,
+  getSettingsAdmin,
+  updateSettingsAdmin,
+  getSettingsPublic
 } from '../controllers/adminController.js';
 
 
@@ -70,24 +81,27 @@ router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
 router.get('/auth/me', protect, getProfile);
+router.put('/auth/profile', protect, updateProfile);
 
 // Catalog Routes
 router.get('/products', getProducts);
-router.post('/products', protect, restrictTo('ADMIN'), createProduct);
-router.put('/products/:id', protect, restrictTo('ADMIN'), updateProduct);
+router.post('/products', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createProduct);
+router.put('/products/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateProduct);
 router.get('/products/:slug', getProductBySlug);
-router.delete('/products/:id', protect, restrictTo('ADMIN'), deleteProduct);
+router.get('/categories', getCategoriesPublic);
+router.get('/settings', getSettingsPublic);
+router.delete('/products/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteProduct);
 
 router.get('/colors', getColors);
-router.post('/colors', protect, restrictTo('ADMIN'), createColor);
+router.post('/colors', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createColor);
 router.get('/sizes', getSizes);
 router.get('/collections', getCollections);
-router.post('/collections', protect, restrictTo('ADMIN'), createCollection);
+router.post('/collections', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createCollection);
 router.get('/lookbooks', getLookbooks);
 
 // Dynamic Homepage CMS
 router.get('/cms/homepage', getHomepageData);
-router.put('/cms/homepage', protect, restrictTo('ADMIN'), updateHomepageCMS);
+router.put('/cms/homepage', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateHomepageCMS);
 router.post('/cms/newsletter/subscribe', subscribeNewsletter);
 
 
@@ -99,6 +113,12 @@ router.post('/orders/:id/returns', protect, createReturnRequest);
 router.post('/payments/razorpay/create-order', protect, createRazorpayOrder);
 router.post('/payments/razorpay/verify', protect, verifyRazorpayPayment);
 
+// Address CRUD
+router.get('/addresses', protect, getAddresses);
+router.post('/addresses', protect, createAddress);
+router.put('/addresses/:id', protect, updateAddress);
+router.delete('/addresses/:id', protect, deleteAddress);
+
 // Customer Reviews
 router.get('/reviews/my-reviews', protect, getMyReviews);
 router.post('/reviews', protect, createReview);
@@ -106,19 +126,19 @@ router.put('/reviews/:reviewId', protect, updateReview);
 router.delete('/reviews/:reviewId', protect, deleteReview);
 
 // Enterprise Admin Dashboard
-router.get('/admin/metrics', protect, restrictTo('ADMIN'), getAdminDashboardMetrics);
-router.get('/admin/audit-logs', protect, restrictTo('ADMIN'), getAuditLogs);
-router.get('/admin/categories', protect, restrictTo('ADMIN'), getCategoriesAdmin);
-router.post('/admin/categories', protect, restrictTo('ADMIN'), createCategoryAdmin);
-router.put('/admin/categories/:id', protect, restrictTo('ADMIN'), updateCategoryAdmin);
-router.delete('/admin/categories/:id', protect, restrictTo('ADMIN'), deleteCategoryAdmin);
-router.get('/admin/customers', protect, restrictTo('ADMIN'), getCustomersAdmin);
-router.get('/admin/reviews', protect, restrictTo('ADMIN'), getReviewsAdmin);
-router.delete('/admin/reviews/:id', protect, restrictTo('ADMIN'), deleteReviewAdmin);
-router.get('/admin/orders', protect, restrictTo('ADMIN'), getOrdersAdmin);
-router.put('/admin/orders/:id/status', protect, restrictTo('ADMIN'), updateOrderStatusAdmin);
-router.put('/admin/orders/:id/tracking', protect, restrictTo('ADMIN'), updateOrderTrackingAdmin);
-router.put('/admin/customers/:id', protect, restrictTo('ADMIN'), updateCustomerAdmin);
+router.get('/admin/metrics', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getAdminDashboardMetrics);
+router.get('/admin/audit-logs', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getAuditLogs);
+router.get('/admin/categories', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getCategoriesAdmin);
+router.post('/admin/categories', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createCategoryAdmin);
+router.put('/admin/categories/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateCategoryAdmin);
+router.delete('/admin/categories/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteCategoryAdmin);
+router.get('/admin/customers', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getCustomersAdmin);
+router.get('/admin/reviews', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getReviewsAdmin);
+router.delete('/admin/reviews/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteReviewAdmin);
+router.get('/admin/orders', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getOrdersAdmin);
+router.put('/admin/orders/:id/status', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateOrderStatusAdmin);
+router.put('/admin/orders/:id/tracking', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateOrderTrackingAdmin);
+router.put('/admin/customers/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateCustomerAdmin);
 import { uploadImage } from '../controllers/uploadController.js';
 import multer from 'multer';
 import path from 'path';
@@ -141,18 +161,18 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.delete('/admin/customers/:id', protect, restrictTo('ADMIN'), deleteCustomerAdmin);
-router.post('/admin/email-blast', protect, restrictTo('ADMIN'), sendBlastEmailAdmin);
-router.get('/admin/returns', protect, restrictTo('ADMIN'), getReturnsAdmin);
-router.put('/admin/returns/:id', protect, restrictTo('ADMIN'), updateReturnRequestAdmin);
-router.post('/upload', protect, restrictTo('ADMIN'), upload.single('image'), uploadImage);
+router.delete('/admin/customers/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteCustomerAdmin);
+router.post('/admin/email-blast', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), sendBlastEmailAdmin);
+router.get('/admin/returns', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getReturnsAdmin);
+router.put('/admin/returns/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateReturnRequestAdmin);
+router.post('/upload', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), upload.single('image'), uploadImage);
 
 // Admin CMS Delete Routes
-router.delete('/admin/cms/banners/:id', protect, restrictTo('ADMIN'), deleteHeroBannerAdmin);
-router.delete('/admin/cms/trust-features/:id', protect, restrictTo('ADMIN'), deleteTrustFeatureAdmin);
-router.delete('/admin/cms/promotions/:id', protect, restrictTo('ADMIN'), deletePromotionAdmin);
-router.delete('/admin/cms/instagram-pics/:id', protect, restrictTo('ADMIN'), deleteInstagramPicAdmin);
-router.delete('/admin/cms/why-choose-us/:id', protect, restrictTo('ADMIN'), deleteWhyChooseUsAdmin);
+router.delete('/admin/cms/banners/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteHeroBannerAdmin);
+router.delete('/admin/cms/trust-features/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteTrustFeatureAdmin);
+router.delete('/admin/cms/promotions/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deletePromotionAdmin);
+router.delete('/admin/cms/instagram-pics/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteInstagramPicAdmin);
+router.delete('/admin/cms/why-choose-us/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteWhyChooseUsAdmin);
 
 // Initialize memory storage multer instance for media library uploads
 const uploadMemory = multer({ storage: multer.memoryStorage() });
@@ -161,22 +181,39 @@ const uploadMemory = multer({ storage: multer.memoryStorage() });
 router.post('/marketing/validate-coupon', validateCouponCode);
 
 // Enterprise Admin Marketing Suite
-router.get('/admin/marketing/stats', protect, restrictTo('ADMIN'), getMarketingStats);
-router.get('/admin/coupons', protect, restrictTo('ADMIN'), getCoupons);
-router.post('/admin/coupons', protect, restrictTo('ADMIN'), createCoupon);
-router.put('/admin/coupons/:id', protect, restrictTo('ADMIN'), updateCoupon);
-router.delete('/admin/coupons/:id', protect, restrictTo('ADMIN'), deleteCoupon);
-router.get('/admin/sales', protect, restrictTo('ADMIN'), getSales);
-router.post('/admin/sales', protect, restrictTo('ADMIN'), createSale);
-router.put('/admin/sales/:id', protect, restrictTo('ADMIN'), updateSale);
-router.delete('/admin/sales/:id', protect, restrictTo('ADMIN'), deleteSale);
+router.get('/admin/marketing/stats', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getMarketingStats);
+router.get('/admin/coupons', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getCoupons);
+router.post('/admin/coupons', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createCoupon);
+router.put('/admin/coupons/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateCoupon);
+router.delete('/admin/coupons/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteCoupon);
+router.get('/admin/sales', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getSales);
+router.post('/admin/sales', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createSale);
+router.put('/admin/sales/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateSale);
+router.delete('/admin/sales/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteSale);
 
 // Enterprise Admin Media Library Suite
-router.get('/admin/media', protect, restrictTo('ADMIN'), getMediaAssets);
-router.post('/admin/media/upload', protect, restrictTo('ADMIN'), uploadMemory.single('file'), uploadMedia);
-router.post('/admin/media/sync', protect, restrictTo('ADMIN'), syncCloudinary);
-router.put('/admin/media/:id/rename', protect, restrictTo('ADMIN'), renameMediaAsset);
-router.delete('/admin/media/:id', protect, restrictTo('ADMIN'), deleteMediaAsset);
+router.get('/admin/media', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getMediaAssets);
+router.post('/admin/media/upload', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), uploadMemory.single('file'), uploadMedia);
+router.post('/admin/media/sync', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), syncCloudinary);
+router.put('/admin/media/:id/rename', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), renameMediaAsset);
+router.delete('/admin/media/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteMediaAsset);
+
+
+// Staff Management (Super Admin only)
+router.get('/admin/staff', protect, restrictTo('SUPER_ADMIN'), getStaffAdmin);
+router.post('/admin/staff', protect, restrictTo('SUPER_ADMIN'), createStaffAdmin);
+router.put('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), updateStaffAdmin);
+router.delete('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), deleteStaffAdmin);
+
+// Roles & Permissions (Super Admin only)
+router.get('/admin/roles', protect, restrictTo('SUPER_ADMIN'), getRolesAdmin);
+router.get('/admin/permissions', protect, restrictTo('SUPER_ADMIN'), getPermissionsAdmin);
+router.put('/admin/roles/:id/permissions', protect, restrictTo('SUPER_ADMIN'), updateRolePermissionsAdmin);
+
+// System Settings (Super Admin only)
+router.get('/admin/settings', protect, restrictTo('SUPER_ADMIN'), getSettingsAdmin);
+router.put('/admin/settings', protect, restrictTo('SUPER_ADMIN'), updateSettingsAdmin);
+
 
 export default router;
 

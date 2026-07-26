@@ -809,6 +809,7 @@ model WhyChooseUs {
 
 enum RoleName {
   CUSTOMER
+  SUPER_ADMIN
   ADMIN
   MANAGER
   SUPPORT
@@ -871,4 +872,18 @@ model MediaAsset {
   folder    String?  @default("tnt")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SystemSetting {
+  id                  String   @id @default("default-settings")
+  siteName            String   @default("TNT Luxury Streetwear")
+  siteEmail           String   @default("contact@tntclothing.com")
+  sitePhone           String   @default("+91 99999 88888")
+  currency            String   @default("INR")
+  razorpayKeyId       String   @default("")
+  razorpayKeySecret   String   @default("")
+  razorpayEnabled     Boolean  @default(true)
+  codEnabled          Boolean  @default(true)
+  freeShippingMin     Float    @default(1999)
+  updatedAt           DateTime @updatedAt
 }

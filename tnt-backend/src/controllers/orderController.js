@@ -4,10 +4,50 @@ import { OrderStatus, PaymentStatus } from '@prisma/client';
 export const createOrder = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { addressId, items, paymentMethod, couponCode, shippingFee = 0 } = req.body;
+    const {
+      addressId,
+      items,
+      paymentMethod,
+      couponCode,
+      shippingFee = 0,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature
+    } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Cart items cannot be empty' });
+    }
+
+    let verifiedTransactionId = `TXN_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    let initialPaymentStatus = PaymentStatus.PENDING;
+
+    if (paymentMethod !== 'COD') {
+      if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+        return res.status(400).json({ success: false, message: 'Missing Razorpay payment parameters for online checkout' });
+      }
+
+      // Fetch Razorpay credentials from system settings
+      const settings = await prisma.systemSetting.findUnique({
+        where: { id: 'default-settings' }
+      });
+      const keySecret = settings?.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || 'tnt_secret_key';
+
+      // Verify HMAC SHA256 Signature
+      const crypto = await import('crypto');
+      const body = razorpayOrderId + '|' + razorpayPaymentId;
+      const expectedSignature = crypto
+        .createHmac('sha256', keySecret)
+        .update(body.toString())
+        .digest('hex');
+
+      const isValid = razorpaySignature === expectedSignature;
+      if (!isValid) {
+        return res.status(400).json({ success: false, message: 'Invalid payment signature. Aborted.' });
+      }
+
+      verifiedTransactionId = razorpayPaymentId;
+      initialPaymentStatus = PaymentStatus.SUCCESS;
     }
 
     // Execute order creation in a PRISMA TRANSACTION
@@ -64,15 +104,15 @@ export const createOrder = async (req, res) => {
           shippingFee,
           totalAmount,
           orderStatus: OrderStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.SUCCESS,
+          paymentStatus: initialPaymentStatus,
           couponCode,
           items: { create: orderItemData },
           payment: {
             create: {
               paymentMethod,
-              transactionId: `TXN_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+              transactionId: verifiedTransactionId,
               amount: totalAmount,
-              status: PaymentStatus.SUCCESS,
+              status: initialPaymentStatus,
             },
           },
           tracking: {

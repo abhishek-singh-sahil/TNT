@@ -29,6 +29,7 @@
     "pg": "^8.12.0"
   },
   "devDependencies": {
-    "prisma": "^5.19.0"
+    "prisma": "^5.19.0",
+    "prisma-erd-generator": "^2.4.4"
   }
 }

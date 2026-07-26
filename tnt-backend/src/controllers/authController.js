@@ -100,3 +100,26 @@ export const logout = async (req, res) => {
   res.clearCookie('token');
   return res.json({ success: true, message: 'Logged out successfully' });
 };
+
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { firstName, lastName, email, phone, password } = req.body;
+
+    const data = { firstName, lastName, email, phone };
+    if (password) {
+      data.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data,
+      include: { role: true, addresses: true }
+    });
+
+    delete updatedUser.passwordHash;
+    return res.json({ success: true, message: 'Profile updated successfully', user: updatedUser });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update profile', error: error.message });
+  }
+};
