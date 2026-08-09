@@ -13,9 +13,23 @@ const app = express();
 
 // Security & utility middlewares
 app.use(helmet({ contentSecurityPolicy: false }));
+const allowedOrigins = [
+  'https://threadntones.in',
+  'https://www.threadntones.in',
+  'https://threadntones.shop',
+  'https://www.threadntones.shop',
+  'http://localhost:5173',
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );
