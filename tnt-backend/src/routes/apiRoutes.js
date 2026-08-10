@@ -103,7 +103,18 @@ router.post('/collections', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createC
 router.get('/lookbooks', getLookbooks);
 
 // Dynamic Homepage CMS
-router.get('/cms/homepage', getHomepageData);
+router.get(
+  '/cms/homepage',
+  (req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
+    next();
+  },
+  getHomepageData
+);
 router.put('/cms/homepage', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateHomepageCMS);
 router.post('/cms/newsletter/subscribe', subscribeNewsletter);
 
