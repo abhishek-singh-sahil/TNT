@@ -209,7 +209,7 @@ router.put('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), updateStaffAd
 router.delete('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), deleteStaffAdmin);
 
 // Roles & Permissions (Super Admin only)
-router.get('/admin/roles', protect, restrictTo('SUPER_ADMIN'), getRolesAdmin);
+router.get('/admin/roles', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getRolesAdmin);
 router.get('/admin/permissions', protect, restrictTo('SUPER_ADMIN'), getPermissionsAdmin);
 router.put('/admin/roles/:id/permissions', protect, restrictTo('SUPER_ADMIN'), updateRolePermissionsAdmin);
 
