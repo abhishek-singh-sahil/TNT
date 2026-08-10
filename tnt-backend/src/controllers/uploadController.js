@@ -7,9 +7,7 @@ export const uploadImage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const host = req.get('host');
-    const protocol = req.protocol;
-    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const fileUrl = `/uploads/${req.file.filename}`;
 
     return res.json({
       success: true,

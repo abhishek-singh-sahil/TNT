@@ -141,9 +141,7 @@ export const uploadMedia = async (req, res) => {
     // Save memory buffer to disk
     fs.writeFileSync(localFilePath, req.file.buffer);
 
-    const host = req.get('host');
-    const protocol = req.protocol;
-    const fileUrl = `${protocol}://${host}/uploads/${filename}`;
+    const fileUrl = `/uploads/${filename}`;
 
     const asset = await prisma.mediaAsset.create({
       data: {
