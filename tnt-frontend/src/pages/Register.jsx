@@ -31,14 +31,20 @@ export default function Register() {
     const initGoogleSignUp = () => {
       if (window.google) {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '921102923743-pqu68muf0n7p07u0519igk331qbf9fmo.apps.googleusercontent.com';
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredentialResponse,
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById('google-signup-btn'),
-          { theme: 'outline', size: 'large', width: '100%' }
-        );
+        if (!window.googleInitDone) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+          });
+          window.googleInitDone = true;
+        }
+        const btnContainer = document.getElementById('google-signup-btn');
+        if (btnContainer) {
+          window.google.accounts.id.renderButton(
+            btnContainer,
+            { theme: 'outline', size: 'large', width: 350 }
+          );
+        }
       }
     };
 

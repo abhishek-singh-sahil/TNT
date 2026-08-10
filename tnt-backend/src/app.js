@@ -10,6 +10,7 @@ import apiRoutes from './routes/apiRoutes.js';
 dotenv.config();
 
 const app = express();
+app.enable('trust proxy');
 
 // Security & utility middlewares
 app.use(helmet({ contentSecurityPolicy: false }));

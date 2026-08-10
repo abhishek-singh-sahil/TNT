@@ -25,14 +25,20 @@ export default function Login() {
     const initGoogleSignIn = () => {
       if (window.google) {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '921102923743-pqu68muf0n7p07u0519igk331qbf9fmo.apps.googleusercontent.com';
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredentialResponse,
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById('google-signin-btn'),
-          { theme: 'outline', size: 'large', width: '100%' }
-        );
+        if (!window.googleInitDone) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+          });
+          window.googleInitDone = true;
+        }
+        const btnContainer = document.getElementById('google-signin-btn');
+        if (btnContainer) {
+          window.google.accounts.id.renderButton(
+            btnContainer,
+            { theme: 'outline', size: 'large', width: 350 }
+          );
+        }
       }
     };
 
@@ -45,7 +51,6 @@ export default function Login() {
       script.onload = initGoogleSignIn;
       document.head.appendChild(script);
     } else {
-      // Delay slightly to ensure google object is parsed
       setTimeout(initGoogleSignIn, 300);
     }
   }, [step]);

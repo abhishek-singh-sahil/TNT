@@ -142,7 +142,7 @@ export const uploadMedia = async (req, res) => {
     fs.writeFileSync(localFilePath, req.file.buffer);
 
     const host = req.get('host');
-    const protocol = req.protocol;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const fileUrl = `${protocol}://${host}/uploads/${filename}`;
 
     const asset = await prisma.mediaAsset.create({
