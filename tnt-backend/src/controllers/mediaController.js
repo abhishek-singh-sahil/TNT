@@ -1,12 +1,6 @@
-import { v2 as cloudinary } from 'cloudinary';
+import fs from 'fs';
+import path from 'path';
 import { prisma } from '../config/prisma.js';
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 // Helper for asset usage detection
 async function detectAssetUsage(url, publicId) {
@@ -80,52 +74,13 @@ async function detectAssetUsage(url, publicId) {
   return usages;
 }
 
-// 1. Sync Cloudinary files with MediaAsset table
+// 1. Cloudinary Sync bypass
 export const syncCloudinary = async (req, res) => {
-  try {
-    const response = await cloudinary.api.resources({
-      type: 'upload',
-      prefix: '',
-      max_results: 500
-    });
-
-    const resources = response.resources || [];
-    const syncedAssets = [];
-
-    for (const resource of resources) {
-      const asset = await prisma.mediaAsset.upsert({
-        where: { publicId: resource.public_id },
-        update: {
-          url: resource.secure_url,
-          filename: resource.public_id.split('/').pop() || resource.public_id,
-          fileType: resource.resource_type,
-          fileSize: resource.bytes,
-          width: resource.width,
-          height: resource.height,
-          folder: resource.folder || 'tnt'
-        },
-        create: {
-          publicId: resource.public_id,
-          url: resource.secure_url,
-          filename: resource.public_id.split('/').pop() || resource.public_id,
-          fileType: resource.resource_type,
-          fileSize: resource.bytes,
-          width: resource.width,
-          height: resource.height,
-          folder: resource.folder || 'tnt'
-        }
-      });
-      syncedAssets.push(asset);
-    }
-
-    return res.json({
-      success: true,
-      message: `Successfully synchronized ${syncedAssets.length} assets with Cloudinary!`,
-      count: syncedAssets.length
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Cloudinary synchronization failed', error: error.message });
-  }
+  return res.json({
+    success: true,
+    message: 'VPS Local storage mode active. Syncing bypassed.',
+    count: 0
+  });
 };
 
 // 2. Get list of assets from MediaAsset table
@@ -168,7 +123,7 @@ export const getMediaAssets = async (req, res) => {
   }
 };
 
-// 3. Upload new file directly to Cloudinary and register in database
+// 3. Upload new file directly to VPS Disk and register in database
 export const uploadMedia = async (req, res) => {
   try {
     if (!req.file) {
@@ -176,42 +131,36 @@ export const uploadMedia = async (req, res) => {
     }
 
     const folder = req.body.folder || 'tnt';
+    
+    // Generate unique local file path
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const originalExt = path.extname(req.file.originalname);
+    const filename = `${req.file.fieldname}-${uniqueSuffix}${originalExt}`;
+    const localFilePath = path.join('uploads', filename);
 
-    // Upload buffer stream to Cloudinary
-    const uploadStreamPromise = (buffer) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            folder: folder,
-            resource_type: 'auto'
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        stream.end(buffer);
-      });
-    };
+    // Save memory buffer to disk
+    fs.writeFileSync(localFilePath, req.file.buffer);
 
-    const cloudinaryResult = await uploadStreamPromise(req.file.buffer);
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const fileUrl = `${protocol}://${host}/uploads/${filename}`;
 
     const asset = await prisma.mediaAsset.create({
       data: {
-        publicId: cloudinaryResult.public_id,
-        url: cloudinaryResult.secure_url,
+        publicId: filename,
+        url: fileUrl,
         filename: req.file.originalname,
-        fileType: cloudinaryResult.resource_type,
-        fileSize: cloudinaryResult.bytes,
-        width: cloudinaryResult.width,
-        height: cloudinaryResult.height,
+        fileType: req.file.mimetype.split('/')[0] || 'image',
+        fileSize: req.file.size,
+        width: 800,
+        height: 800,
         folder: folder
       }
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Asset uploaded successfully to Cloudinary',
+      message: 'Asset uploaded successfully to local VPS storage',
       asset: {
         ...asset,
         usageCount: 0,
@@ -223,7 +172,7 @@ export const uploadMedia = async (req, res) => {
   }
 };
 
-// 4. Delete image from Cloudinary and MediaAsset table
+// 4. Delete image from local VPS storage and MediaAsset table
 export const deleteMediaAsset = async (req, res) => {
   try {
     const { id } = req.params;
@@ -245,13 +194,16 @@ export const deleteMediaAsset = async (req, res) => {
       });
     }
 
-    // Delete from Cloudinary
-    await cloudinary.uploader.destroy(asset.publicId);
+    // Delete local file from uploads
+    const localFilePath = path.join('uploads', asset.publicId);
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
 
     // Delete from DB
     await prisma.mediaAsset.delete({ where: { id } });
 
-    return res.json({ success: true, message: 'Media asset permanently deleted from database and Cloudinary!' });
+    return res.json({ success: true, message: 'Media asset permanently deleted from local VPS storage!' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to delete asset', error: error.message });
   }
@@ -272,8 +224,6 @@ export const renameMediaAsset = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
 
-    // Update in database (Cloudinary does not easily allow renaming the filename metadata without changing public_id, which breaks current URL links in DB)
-    // Changing filename only in db maintains current image URLs and is highly recommended
     const updated = await prisma.mediaAsset.update({
       where: { id },
       data: { filename: newFilename }

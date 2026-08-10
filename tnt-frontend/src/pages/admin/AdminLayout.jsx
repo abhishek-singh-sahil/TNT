@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutGrid,
@@ -30,9 +30,23 @@ import { logout } from '../../store/authSlice';
 export default function AdminLayout() {
   const location = useLocation();
   const dispatch = useDispatch();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
   const { user } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const isAdminUser = user && (user.role?.name === 'ADMIN' || user.role?.name === 'SUPER_ADMIN');
 
@@ -86,7 +100,15 @@ export default function AdminLayout() {
   });
 
   return (
-    <div className={`min-h-screen flex ${darkMode ? 'bg-zinc-950 text-zinc-100 dark' : 'bg-stone text-ink'}`}>
+    <div className="min-h-screen flex bg-stone text-ink">
+      {/* Sidebar Backdrop Overlay on Mobile */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden"
+        />
+      )}
+
       {/* Admin Sidebar */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-paper border-r border-line flex flex-col justify-between transition-transform duration-300 ${
@@ -157,20 +179,12 @@ export default function AdminLayout() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden text-ink">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="relative w-64 sm:w-80">
-              <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Global search products, orders, users..."
-                className="w-full pl-9 pr-3 py-1.5 bg-stone border border-line rounded-lg text-xs font-semibold text-ink focus:outline-none focus:border-ink"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 border border-line rounded-lg text-ink hover:bg-stone"
+              className="p-2 border border-line rounded-lg text-ink hover:bg-stone animate-fadeIn"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>

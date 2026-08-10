@@ -30,7 +30,7 @@ export default function Header() {
     async function loadHeaderNavData() {
       try {
         const [catRes, collRes] = await Promise.all([
-          adminApi.getCategories(),
+          productApi.getCategories(),
           productApi.getCollections()
         ]);
         if (catRes.success && catRes.categories) {

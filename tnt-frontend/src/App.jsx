@@ -93,7 +93,16 @@ export default function App() {
         <Route path="/account/rewards" element={<AccountDashboard />} />
         <Route path="/account/coupons" element={<AccountDashboard />} />
         <Route path="/account/details" element={<AccountDashboard />} />
-        <Route path="/account/notifications" element={<EmptyStates />} />
+        <Route path="/account/notifications" element={<AccountDashboard />} />
+        <Route path="/account/customercare" element={<AccountDashboard />} />
+        <Route path="/account/tntverse" element={<AccountDashboard />} />
+        <Route path="/account/savedcards" element={<AccountDashboard />} />
+        <Route path="/account/howtoreturn" element={<AccountDashboard />} />
+        <Route path="/account/terms" element={<AccountDashboard />} />
+        <Route path="/account/promotions" element={<AccountDashboard />} />
+        <Route path="/account/returns-policy" element={<AccountDashboard />} />
+        <Route path="/account/privacy" element={<AccountDashboard />} />
+        <Route path="/account/fees" element={<AccountDashboard />} />
 
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />

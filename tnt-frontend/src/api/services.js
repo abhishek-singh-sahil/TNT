@@ -6,6 +6,9 @@ export const authApi = {
   logout: () => apiClient.post('/auth/logout'),
   getMe: () => apiClient.get('/auth/me'),
   updateProfile: (payload) => apiClient.put('/auth/profile', payload),
+  verifyOtp: (payload) => apiClient.post('/auth/verify-otp', payload),
+  resendOtp: (payload) => apiClient.post('/auth/resend-otp', payload),
+  googleLogin: (payload) => apiClient.post('/auth/google-login', payload),
 };
 
 export const productApi = {

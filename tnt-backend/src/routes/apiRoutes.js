@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getProfile, logout, updateProfile } from '../controllers/authController.js';
+import { register, login, getProfile, logout, updateProfile, verifyOTP, resendOTP, googleLogin } from '../controllers/authController.js';
 import { getProducts, getProductBySlug, createProduct, deleteProduct, getColors, getSizes, createColor, updateProduct, getCollections, createCollection, getCategoriesPublic } from '../controllers/productController.js';
 import { createOrder, getUserOrders, getOrderTracking, createReturnRequest } from '../controllers/orderController.js';
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../controllers/addressController.js';
@@ -80,6 +80,9 @@ const router = express.Router();
 router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
+router.post('/auth/verify-otp', verifyOTP);
+router.post('/auth/resend-otp', resendOTP);
+router.post('/auth/google-login', googleLogin);
 router.get('/auth/me', protect, getProfile);
 router.put('/auth/profile', protect, updateProfile);
 
