@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { sendEmail } from '../utils/email.js';
 
 export const createOrder = async (req, res) => {
   try {
@@ -86,8 +87,32 @@ export const createOrder = async (req, res) => {
       }
 
       let discountAmount = 0;
-      if (couponCode === 'WELCOME10') {
-        discountAmount = Math.round(subtotal * 0.1);
+      let appliedCouponId = null;
+
+      if (couponCode) {
+        const coupon = await tx.coupon.findUnique({
+          where: { code: couponCode.toUpperCase() }
+        });
+
+        if (coupon && coupon.isActive) {
+          const now = new Date();
+          const isValidTime = coupon.validFrom <= now && coupon.validTill >= now;
+          const isUnderMaxUses = coupon.usedCount < coupon.maxUses;
+          const isAboveMinAmount = subtotal >= coupon.minOrderAmount;
+
+          if (isValidTime && isUnderMaxUses && isAboveMinAmount) {
+            appliedCouponId = coupon.id;
+            if (coupon.couponType === 'PERCENTAGE') {
+              discountAmount = Math.round((subtotal * coupon.discountValue) / 100);
+              if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+                discountAmount = Math.round(coupon.maxDiscount);
+              }
+            } else if (coupon.couponType === 'FLAT') {
+              discountAmount = Math.round(coupon.discountValue);
+            }
+            discountAmount = Math.min(discountAmount, subtotal);
+          }
+        }
       }
 
       const totalAmount = subtotal - discountAmount + shippingFee;
@@ -129,6 +154,22 @@ export const createOrder = async (req, res) => {
         include: { items: true, payment: true, tracking: true },
       });
 
+      // Increment coupon usage & save log if valid coupon applied
+      if (appliedCouponId) {
+        await tx.couponUsage.create({
+          data: {
+            couponId: appliedCouponId,
+            userId,
+            orderId: newOrder.id
+          }
+        });
+
+        await tx.coupon.update({
+          where: { id: appliedCouponId },
+          data: { usedCount: { increment: 1 } }
+        });
+      }
+
       // Reward points update
       await tx.user.update({
         where: { id: userId },
@@ -137,6 +178,60 @@ export const createOrder = async (req, res) => {
 
       return newOrder;
     });
+
+    // Send background emails
+    try {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 25px; border: 1px solid #e5e5e7; max-width: 600px; margin: 0 auto; color: #111111;">
+          <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+            <span style="font-size: 24px; font-weight: 900;">TNT LUXURY STREETWEAR</span>
+          </div>
+          <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Order Confirmed!</h2>
+          <p style="font-size: 14px; line-height: 1.6;">Hi ${req.user.firstName},</p>
+          <p style="font-size: 14px; line-height: 1.6;">Thank you for shopping at TNT! Your order <strong>#${result.orderNumber}</strong> has been successfully placed and is being processed.</p>
+          
+          <div style="background: #f4f2ee; padding: 15px; border-radius: 4px; border: 1px solid #e3e1dc; margin: 20px 0;">
+            <h3 style="font-size: 14px; font-weight: bold; margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #d3d1cb; padding-bottom: 5px;">ORDER SUMMARY</h3>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Payment Method:</strong> ${paymentMethod}</p>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Subtotal:</strong> ₹${result.subtotal.toLocaleString()}</p>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Discount Amount:</strong> -₹${result.discountAmount.toLocaleString()}</p>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Shipping:</strong> ${result.shippingFee === 0 ? 'FREE' : `₹${result.shippingFee}`}</p>
+            <p style="font-size: 14px; margin: 10px 0 0 0; font-weight: bold; border-top: 1px dashed #d3d1cb; padding-top: 10px;">Total Amount Paid: ₹${result.totalAmount.toLocaleString()}</p>
+          </div>
+          <p style="font-size: 12px; color: #6b6b6b; border-top: 1px solid #e5e5e7; padding-top: 15px; text-align: center;">Need assistance? Contact our support channels or check your account registry.</p>
+        </div>
+      `;
+      // Send confirmation to user
+      sendEmail({
+        to: req.user.email,
+        subject: `TNT Order Confirmation #${result.orderNumber}`,
+        html: emailHtml
+      });
+
+      // Send notice to admin
+      const adminEmailHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 25px; border: 1px solid #e5e5e7; max-width: 600px; margin: 0 auto; color: #111111;">
+          <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+            <span style="font-size: 20px; font-weight: 900;">TNT ADMIN CONSOLE</span>
+          </div>
+          <h2 style="font-size: 16px; font-weight: bold; color: #c2410c; margin-bottom: 10px;">🔔 NEW ORDER RECEIVED</h2>
+          <p style="font-size: 14px; line-height: 1.6;">Order <strong>#${result.orderNumber}</strong> has been created in your registry.</p>
+          <div style="background: #f4f2ee; padding: 15px; border-radius: 4px; border: 1px solid #e3e1dc; margin: 20px 0;">
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Customer Name:</strong> ${req.user.firstName} ${req.user.lastName || ''}</p>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Email:</strong> ${req.user.email}</p>
+            <p style="font-size: 12px; margin: 5px 0;"><strong>Order Amount:</strong> ₹${result.totalAmount.toLocaleString()}</p>
+          </div>
+        </div>
+      `;
+      const settings = await prisma.systemSetting.findUnique({ where: { id: 'default-settings' } });
+      sendEmail({
+        to: settings?.siteEmail || 'contact@tntclothing.com',
+        subject: `🔔 New Order Placed: #${result.orderNumber}`,
+        html: adminEmailHtml
+      });
+    } catch (err) {
+      console.error('Failed to trigger background order emails:', err);
+    }
 
     return res.status(201).json({ success: true, message: 'Order placed successfully', order: result });
   } catch (error) {

@@ -94,7 +94,7 @@ export default function AdminLayout() {
 
   const navItems = allNavItems.filter(item => {
     if (item.superOnly) {
-      return user?.role?.name === 'SUPER_ADMIN';
+      return user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
     }
     return true;
   });

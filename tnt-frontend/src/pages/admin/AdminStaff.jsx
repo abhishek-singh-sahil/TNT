@@ -138,7 +138,7 @@ export default function AdminStaff() {
       // Reuse email blast API on backend
       const res = await apiClient.post('/admin/email-blast', payload);
       if (res.success) {
-        toast.success(targetStaff ? `Email sent to ${targetStaff.firstName}` : 'Broadcast sent to all staff');
+        toast.success('Email sent! Please check your spam folder too.');
         setIsEmailModalOpen(false);
       }
     } catch (err) {

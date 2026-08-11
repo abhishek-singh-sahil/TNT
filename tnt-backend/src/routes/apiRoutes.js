@@ -213,20 +213,20 @@ router.put('/admin/media/:id/rename', protect, restrictTo('SUPER_ADMIN', 'ADMIN'
 router.delete('/admin/media/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteMediaAsset);
 
 
-// Staff Management (Super Admin only)
-router.get('/admin/staff', protect, restrictTo('SUPER_ADMIN'), getStaffAdmin);
-router.post('/admin/staff', protect, restrictTo('SUPER_ADMIN'), createStaffAdmin);
-router.put('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), updateStaffAdmin);
-router.delete('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN'), deleteStaffAdmin);
+// Staff Management (Super Admin and Admin)
+router.get('/admin/staff', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getStaffAdmin);
+router.post('/admin/staff', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createStaffAdmin);
+router.put('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateStaffAdmin);
+router.delete('/admin/staff/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteStaffAdmin);
 
-// Roles & Permissions (Super Admin only)
+// Roles & Permissions (Super Admin and Admin)
 router.get('/admin/roles', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getRolesAdmin);
-router.get('/admin/permissions', protect, restrictTo('SUPER_ADMIN'), getPermissionsAdmin);
-router.put('/admin/roles/:id/permissions', protect, restrictTo('SUPER_ADMIN'), updateRolePermissionsAdmin);
+router.get('/admin/permissions', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getPermissionsAdmin);
+router.put('/admin/roles/:id/permissions', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateRolePermissionsAdmin);
 
-// System Settings (Super Admin only)
-router.get('/admin/settings', protect, restrictTo('SUPER_ADMIN'), getSettingsAdmin);
-router.put('/admin/settings', protect, restrictTo('SUPER_ADMIN'), updateSettingsAdmin);
+// System Settings (Super Admin and Admin)
+router.get('/admin/settings', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getSettingsAdmin);
+router.put('/admin/settings', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateSettingsAdmin);
 
 
 export default router;

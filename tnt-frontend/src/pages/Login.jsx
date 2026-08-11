@@ -82,7 +82,7 @@ export default function Login() {
     try {
       const res = await authApi.login({ email, password });
       if (res.requireVerification) {
-        toast.success(res.message);
+        toast.success(res.message + " Please check your spam folder too.");
         setStep('otp');
       } else if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
@@ -131,7 +131,7 @@ export default function Login() {
     try {
       const res = await authApi.resendOtp({ email });
       if (res.success) {
-        toast.success('Verification OTP code resent successfully!');
+        toast.success('Verification OTP code resent successfully! Please check your spam folder too.');
       }
     } catch (err) {
       toast.error(err.message || 'Failed to resend verification code.');

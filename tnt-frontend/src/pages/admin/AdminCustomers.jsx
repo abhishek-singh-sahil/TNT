@@ -123,7 +123,7 @@ export default function AdminCustomers() {
       setSendingEmail(true);
       const res = await adminApi.sendBlastEmail(emailData);
       if (res.success) {
-        toast.success(`Email broadcast successfully sent to: ${emailData.targetName}`);
+        toast.success('Email sent! Please check your spam folder too.');
         setEmailModalOpen(false);
       }
     } catch (err) {
