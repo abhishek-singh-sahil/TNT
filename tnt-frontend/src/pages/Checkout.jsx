@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearCart } from '../store/cartSlice';
 import { selectSettings, selectCurrencySymbol } from '../store/settingsSlice';
-import { addressApi, paymentApi, orderApi } from '../api/services';
+import { addressApi, paymentApi, orderApi, marketingApi } from '../api/services';
 
 export default function Checkout() {
   const navigate = useNavigate();

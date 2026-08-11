@@ -15,6 +15,15 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Verify connection configuration on startup
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("❌ SMTP Transporter Verification Failed:", error.message);
+  } else {
+    console.log("🚀 SMTP Transporter is ready to send messages!");
+  }
+});
+
 export const sendEmail = async ({ to, subject, html }) => {
   try {
     const fromUser = process.env.SMTP_USER || 'threadntones25@gmail.com';
