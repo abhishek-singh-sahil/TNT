@@ -46,7 +46,9 @@ import {
   updateRolePermissionsAdmin,
   getSettingsAdmin,
   updateSettingsAdmin,
-  getSettingsPublic
+  getSettingsPublic,
+  getAdminDashboardData,
+  restockInventory
 } from '../controllers/adminController.js';
 
 
@@ -228,6 +230,9 @@ router.put('/admin/roles/:id/permissions', protect, restrictTo('SUPER_ADMIN', 'A
 router.get('/admin/settings', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getSettingsAdmin);
 router.put('/admin/settings', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateSettingsAdmin);
 
+// Dashboard Analytics & Inventory Restocking
+router.get('/admin/dashboard', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getAdminDashboardData);
+router.post('/admin/inventory/restock', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), restockInventory);
 
 export default router;
 

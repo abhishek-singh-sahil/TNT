@@ -182,22 +182,45 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 border border-line rounded-lg text-ink hover:bg-stone animate-fadeIn"
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button className="p-2 border border-line rounded-lg text-ink hover:bg-stone relative">
-              <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5" />
-            </button>
+            {/* View Live Store */}
             <Link
               to="/"
-              className="text-xs font-bold text-ink hover:underline border border-line px-3 py-1.5 rounded-lg bg-stone"
+              className="text-xs font-bold text-ink hover:underline border border-line px-3.5 py-2 rounded-lg bg-stone/50 hover:bg-stone transition-colors uppercase tracking-wider hidden sm:block"
             >
               VIEW LIVE STORE ↗
             </Link>
+
+            {/* Notification Bell */}
+            <button className="p-2 border border-line rounded-lg text-ink hover:bg-stone relative transition-colors">
+              <Bell className="w-4 h-4" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-paper text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
+                3
+              </span>
+            </button>
+
+            {/* Settings Gear Shortcut */}
+            <Link to="/admin/settings" className="p-2 border border-line rounded-lg text-ink hover:bg-stone transition-colors">
+              <Settings className="w-4 h-4" />
+            </Link>
+
+            {/* Admin Profile User Card */}
+            <div className="flex items-center gap-2.5 pl-2 border-l border-line">
+              <div className="w-8 h-8 rounded-full bg-ink text-paper font-black text-xs flex items-center justify-center overflow-hidden border border-line shadow-inner">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{user?.firstName?.substring(0, 2).toUpperCase() || 'AD'}</span>
+                )}
+              </div>
+              <div className="text-left hidden md:block">
+                <div className="text-xs font-bold text-ink">
+                  {user?.firstName} {user?.lastName || ''}
+                </div>
+                <div className="text-[9px] font-extrabold text-muted uppercase tracking-wider">
+                  {user?.role?.name === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin User'}
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 

@@ -697,3 +697,342 @@ export const getSettingsPublic = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to fetch public settings', error: error.message });
   }
 };
+
+export const getAdminDashboardData = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let start = startDate ? new Date(startDate) : new Date();
+    let end = endDate ? new Date(endDate) : new Date();
+
+    if (!startDate || !endDate) {
+      start.setDate(start.getDate() - 30);
+    }
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const durationMs = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - durationMs - 1);
+    const prevEnd = new Date(start.getTime() - 1);
+
+    // 1. Fetch current and previous orders
+    const currentOrders = await prisma.order.findMany({
+      where: {
+        paymentStatus: 'SUCCESS',
+        createdAt: { gte: start, lte: end }
+      },
+      select: {
+        totalAmount: true,
+        createdAt: true,
+        orderNumber: true,
+        id: true,
+        user: { select: { firstName: true, lastName: true, email: true } },
+        orderStatus: true
+      }
+    });
+
+    const prevOrders = await prisma.order.findMany({
+      where: {
+        paymentStatus: 'SUCCESS',
+        createdAt: { gte: prevStart, lte: prevEnd }
+      },
+      select: {
+        totalAmount: true
+      }
+    });
+
+    const currentRevenue = currentOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const prevRevenue = prevOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+    const currentOrdersCount = currentOrders.length;
+    const prevOrdersCount = prevOrders.length;
+
+    // 2. Fetch Customers
+    const currentCustomers = await prisma.user.count({
+      where: {
+        role: { name: 'CUSTOMER' },
+        createdAt: { gte: start, lte: end }
+      }
+    });
+
+    const prevCustomers = await prisma.user.count({
+      where: {
+        role: { name: 'CUSTOMER' },
+        createdAt: { gte: prevStart, lte: prevEnd }
+      }
+    });
+
+    const totalCustomersCount = await prisma.user.count({
+      where: { role: { name: 'CUSTOMER' } }
+    });
+
+    // 3. Fetch Conversion Rate (Visitor unique IP counts)
+    const currentSessions = await prisma.visitorLog.count({
+      where: { visitedAt: { gte: start, lte: end } }
+    });
+    const prevSessions = await prisma.visitorLog.count({
+      where: { visitedAt: { gte: prevStart, lte: prevEnd } }
+    });
+
+    // Fallback if no logs exist
+    const fallbackSessionsCurrent = currentSessions || Math.max(currentOrdersCount * 25, 100);
+    const fallbackSessionsPrev = prevSessions || Math.max(prevOrdersCount * 25, 100);
+
+    const currentConvRate = (currentOrdersCount / fallbackSessionsCurrent) * 100;
+    const prevConvRate = (prevOrdersCount / fallbackSessionsPrev) * 100;
+
+    const getPercentChange = (curr, prev) => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    // 4. Sales performance daily grouping
+    const dailyDataMap = {};
+    const dateCursor = new Date(start);
+    while (dateCursor <= end) {
+      const dateStr = dateCursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dailyDataMap[dateStr] = { label: dateStr, revenue: 0, orders: 0 };
+      dateCursor.setDate(dateCursor.getDate() + 1);
+    }
+
+    currentOrders.forEach(o => {
+      const dateStr = o.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (dailyDataMap[dateStr]) {
+        dailyDataMap[dateStr].revenue += o.totalAmount;
+        dailyDataMap[dateStr].orders += 1;
+      }
+    });
+    const salesChartData = Object.values(dailyDataMap);
+
+    // 5. Inventory alerts (Critical <= 5, Low <= 10, Healthy > 10)
+    const allVariants = await prisma.productVariant.findMany({
+      include: { product: true },
+      orderBy: { stock: 'asc' }
+    });
+
+    const inventoryAlerts = allVariants.map(v => {
+      const stock = v.stock;
+      const reorderLevel = 10;
+      const criticalThreshold = 5;
+      let status = 'Healthy';
+      if (stock <= criticalThreshold) status = 'Critical';
+      else if (stock <= reorderLevel) status = 'Low';
+
+      return {
+        id: v.id,
+        name: v.product.name,
+        sku: v.sku,
+        stock,
+        reorderLevel,
+        status,
+        image: v.product.slug ? `/uploads/${v.product.slug}-thumbnail.png` : null
+      };
+    });
+
+    // 6. Recent Orders
+    const recentOrdersDb = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: start, lte: end }
+      },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+
+    const recentOrders = recentOrdersDb.map(o => ({
+      id: o.orderNumber,
+      customer: `${o.user.firstName} ${o.user.lastName || ''}`.trim(),
+      amount: o.totalAmount,
+      status: o.orderStatus
+    }));
+
+    // 7. Top Selling Products
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          paymentStatus: 'SUCCESS',
+          orderStatus: { notIn: ['CANCELLED'] },
+          createdAt: { gte: start, lte: end }
+        }
+      },
+      select: {
+        productId: true,
+        productName: true,
+        quantity: true,
+        price: true
+      }
+    });
+
+    const productSalesMap = {};
+    orderItems.forEach(item => {
+      if (!productSalesMap[item.productId]) {
+        productSalesMap[item.productId] = {
+          id: item.productId,
+          name: item.productName,
+          unitsSold: 0,
+          revenue: 0
+        };
+      }
+      productSalesMap[item.productId].unitsSold += item.quantity;
+      productSalesMap[item.productId].revenue += item.quantity * item.price;
+    });
+    const topSellingProducts = Object.values(productSalesMap)
+      .sort((a, b) => b.unitsSold - a.unitsSold)
+      .slice(0, 5);
+
+    // 8. Recent Reviews
+    const recentReviewsDb = await prisma.review.findMany({
+      where: {
+        createdAt: { gte: start, lte: end }
+      },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+
+    const recentReviews = recentReviewsDb.map(r => ({
+      id: r.id,
+      customer: `${r.user.firstName} ${r.user.lastName || ''}`.trim(),
+      rating: r.rating,
+      comment: r.comment
+    }));
+
+    // 9. Customer Growth chart
+    const userRegistrations = await prisma.user.findMany({
+      where: {
+        role: { name: 'CUSTOMER' },
+        createdAt: { gte: start, lte: end }
+      },
+      select: { createdAt: true }
+    });
+
+    const dailyUsersMap = {};
+    const uCursor = new Date(start);
+    while (uCursor <= end) {
+      const dateStr = uCursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dailyUsersMap[dateStr] = { label: dateStr, count: 0 };
+      uCursor.setDate(uCursor.getDate() + 1);
+    }
+    userRegistrations.forEach(u => {
+      const dateStr = u.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (dailyUsersMap[dateStr]) {
+        dailyUsersMap[dateStr].count += 1;
+      }
+    });
+    const customerGrowthChartData = Object.values(dailyUsersMap);
+
+    return res.json({
+      success: true,
+      data: {
+        kpis: {
+          revenue: {
+            value: currentRevenue,
+            change: getPercentChange(currentRevenue, prevRevenue),
+            sparkline: salesChartData.map(d => d.revenue)
+          },
+          orders: {
+            value: currentOrdersCount,
+            change: getPercentChange(currentOrdersCount, prevOrdersCount),
+            sparkline: salesChartData.map(d => d.orders)
+          },
+          customers: {
+            value: totalCustomersCount,
+            change: getPercentChange(currentCustomers, prevCustomers),
+            sparkline: customerGrowthChartData.map(d => d.count)
+          },
+          conversion: {
+            value: parseFloat(currentConvRate.toFixed(2)),
+            change: getPercentChange(currentConvRate, prevConvRate),
+            sparkline: salesChartData.map(d => d.orders > 0 ? parseFloat(((d.orders / (fallbackSessionsCurrent / salesChartData.length || 1)) * 100).toFixed(2)) : 0)
+          }
+        },
+        salesPerformance: {
+          revenue: currentRevenue,
+          orders: currentOrdersCount,
+          aov: currentOrdersCount > 0 ? parseFloat((currentRevenue / currentOrdersCount).toFixed(2)) : 0,
+          newCustomers: currentCustomers,
+          chart: salesChartData
+        },
+        inventoryAlerts: inventoryAlerts.filter(i => i.status !== 'Healthy').slice(0, 5),
+        recentOrders,
+        topSellingProducts,
+        customerGrowth: {
+          total: totalCustomersCount,
+          change: getPercentChange(currentCustomers, prevCustomers),
+          chart: customerGrowthChartData
+        },
+        recentReviews
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch dashboard data', error: error.message });
+  }
+};
+
+export const restockInventory = async (req, res) => {
+  try {
+    const { productVariantId, quantity } = req.body;
+    if (!productVariantId || quantity === undefined || parseInt(quantity) <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid variant ID or quantity' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const variant = await tx.productVariant.findUnique({
+        where: { id: productVariantId },
+        include: { product: true }
+      });
+      if (!variant) throw new Error('Product variant not found');
+
+      const updatedVariant = await tx.productVariant.update({
+        where: { id: productVariantId },
+        data: { stock: { increment: parseInt(quantity) } }
+      });
+
+      const existingInventory = await tx.inventory.findFirst({
+        where: { productVariantId }
+      });
+
+      if (existingInventory) {
+        const updatedInventory = await tx.inventory.update({
+          where: { id: existingInventory.id },
+          data: { quantity: { increment: parseInt(quantity) } }
+        });
+
+        await tx.inventoryLog.create({
+          data: {
+            inventoryId: updatedInventory.id,
+            changeQty: parseInt(quantity),
+            reason: `Restock - Admin manual updates`
+          }
+        });
+      } else {
+        let warehouse = await tx.warehouse.findFirst();
+        if (!warehouse) {
+          warehouse = await tx.warehouse.create({
+            data: { name: 'Default Warehouse', code: 'WH001', city: 'Jhumri Telaiya' }
+          });
+        }
+        const newInventory = await tx.inventory.create({
+          data: {
+            productVariantId,
+            warehouseId: warehouse.id,
+            quantity: updatedVariant.stock
+          }
+        });
+        await tx.inventoryLog.create({
+          data: {
+            inventoryId: newInventory.id,
+            changeQty: parseInt(quantity),
+            reason: `Initial restock log creation`
+          }
+        });
+      }
+
+      return updatedVariant;
+    });
+
+    return res.json({ success: true, message: 'Restocked successfully!', variant: result });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Restock failed', error: error.message });
+  }
+};

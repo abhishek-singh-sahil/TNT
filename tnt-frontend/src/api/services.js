@@ -97,6 +97,8 @@ export const adminApi = {
   getSettings: () => apiClient.get('/admin/settings'),
   updateSettings: (payload) => apiClient.put('/admin/settings', payload),
   getSettingsPublic: () => apiClient.get('/settings'),
+  getDashboardData: (params) => apiClient.get('/admin/dashboard', { params }),
+  restockVariant: (payload) => apiClient.post('/admin/inventory/restock', payload),
 };
 
 export const marketingApi = {
