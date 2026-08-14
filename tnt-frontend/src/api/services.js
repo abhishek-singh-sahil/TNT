@@ -116,6 +116,10 @@ export const adminApi = {
   updateSettings: (payload) => apiClient.put('/admin/settings', payload),
   getSettingsPublic: () => apiClient.get('/settings'),
   getDashboardData: (params) => apiClient.get('/admin/dashboard', { params }),
+  getCollections: (params) => apiClient.get('/admin/collections', { params }),
+  createCollection: (payload) => apiClient.post('/admin/collections', payload),
+  updateCollection: (id, payload) => apiClient.put(`/admin/collections/${id}`, payload),
+  deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
   restockVariant: (payload) => apiClient.post('/admin/inventory/restock', payload),
 };
 

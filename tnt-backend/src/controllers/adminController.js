@@ -103,6 +103,130 @@ export const createCategoryAdmin = async (req, res) => {
   }
 };
 
+export const getCollectionsAdmin = async (req, res) => {
+  try {
+    const { search = '' } = req.query;
+    const collections = await prisma.collection.findMany({
+      where: {
+        name: { contains: search, mode: 'insensitive' }
+      },
+      include: {
+        products: { select: { id: true, name: true, sku: true } }
+      },
+      orderBy: { displayOrder: 'asc' }
+    });
+    return res.json({ success: true, collections });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch admin collections', error: error.message });
+  }
+};
+
+export const createCollectionAdmin = async (req, res) => {
+  try {
+    const { name, description, season, bannerImage, status, displayOrder, productIds = [] } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Collection name is required' });
+    }
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    // Create collection
+    const collection = await prisma.collection.create({
+      data: {
+        name,
+        slug,
+        description,
+        season,
+        bannerImage,
+        status,
+        displayOrder: parseInt(displayOrder) || 0
+      }
+    });
+
+    // Assign products if any provided
+    if (productIds.length > 0) {
+      await prisma.product.updateMany({
+        where: { id: { in: productIds } },
+        data: { collectionId: collection.id }
+      });
+    }
+
+    const fullCollection = await prisma.collection.findUnique({
+      where: { id: collection.id },
+      include: { products: true }
+    });
+
+    return res.status(201).json({ success: true, message: 'Collection created successfully', collection: fullCollection });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create collection', error: error.message });
+  }
+};
+
+export const updateCollectionAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, season, bannerImage, status, displayOrder, productIds } = req.body;
+
+    const slug = name ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : undefined;
+
+    // Update basic info
+    const collection = await prisma.collection.update({
+      where: { id },
+      data: {
+        name,
+        slug,
+        description,
+        season,
+        bannerImage,
+        status,
+        displayOrder: displayOrder !== undefined ? (parseInt(displayOrder) || 0) : undefined
+      }
+    });
+
+    // Update product assignments if provided
+    if (productIds !== undefined) {
+      // First, unlink all products currently in this collection
+      await prisma.product.updateMany({
+        where: { collectionId: id },
+        data: { collectionId: null }
+      });
+
+      // Link newly selected products
+      if (productIds.length > 0) {
+        await prisma.product.updateMany({
+          where: { id: { in: productIds } },
+          data: { collectionId: id }
+        });
+      }
+    }
+
+    const fullCollection = await prisma.collection.findUnique({
+      where: { id },
+      include: { products: true }
+    });
+
+    return res.json({ success: true, message: 'Collection updated successfully', collection: fullCollection });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update collection', error: error.message });
+  }
+};
+
+export const deleteCollectionAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Unlink products first
+    await prisma.product.updateMany({
+      where: { collectionId: id },
+      data: { collectionId: null }
+    });
+
+    await prisma.collection.delete({ where: { id } });
+    return res.json({ success: true, message: 'Collection deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete collection', error: error.message });
+  }
+};
+
 export const getCustomersAdmin = async (req, res) => {
   try {
     const {
@@ -1632,6 +1756,28 @@ export const updateCategoryAdmin = async (req, res) => {
 export const deleteCategoryAdmin = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if category has products
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
+    });
+
+    if (!category) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
+    if (category._count.products > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete category "${category.name}". It contains ${category._count.products} products.`
+      });
+    }
+
     await prisma.category.delete({ where: { id } });
     return res.json({ success: true, message: 'Category deleted successfully' });
   } catch (error) {

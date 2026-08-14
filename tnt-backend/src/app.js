@@ -25,10 +25,19 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const isAllowed = 
+        !origin || 
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.threadntones.in') ||
+        origin.endsWith('.threadntones.shop') ||
+        origin === 'https://threadntones.in' ||
+        origin === 'https://threadntones.shop' ||
+        (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL);
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error(`Not allowed by CORS: ${origin}`));
       }
     },
     credentials: true,

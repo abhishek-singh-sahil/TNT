@@ -57,6 +57,10 @@ import {
   updateReturnRequestAdmin,
   updateCategoryAdmin,
   deleteCategoryAdmin,
+  getCollectionsAdmin,
+  createCollectionAdmin,
+  updateCollectionAdmin,
+  deleteCollectionAdmin,
   getStaffAdmin,
   createStaffAdmin,
   updateStaffAdmin,
@@ -203,6 +207,10 @@ router.get('/admin/categories', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), get
 router.post('/admin/categories', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createCategoryAdmin);
 router.put('/admin/categories/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateCategoryAdmin);
 router.delete('/admin/categories/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteCategoryAdmin);
+router.get('/admin/collections', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getCollectionsAdmin);
+router.post('/admin/collections', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), createCollectionAdmin);
+router.put('/admin/collections/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), updateCollectionAdmin);
+router.delete('/admin/collections/:id', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), deleteCollectionAdmin);
 // NOTE: Named routes before parameterised /:id to avoid conflicts
 router.get('/admin/customers/stats', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), getCustomerStatsAdmin);
 router.get('/admin/customers/export', protect, restrictTo('SUPER_ADMIN', 'ADMIN'), exportCustomersAdmin);

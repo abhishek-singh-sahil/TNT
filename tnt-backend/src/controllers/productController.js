@@ -564,7 +564,8 @@ export const updateProduct = async (req, res) => {
 export const getCollections = async (req, res) => {
   try {
     const collections = await prisma.collection.findMany({
-      orderBy: { createdAt: 'desc' }
+      where: { status: 'ACTIVE' },
+      orderBy: { displayOrder: 'asc' }
     });
     return res.json({ success: true, collections });
   } catch (error) {
