@@ -35,7 +35,13 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminMediaLibrary from './pages/admin/AdminMediaLibrary';
 import AdminMarketing from './pages/admin/AdminMarketing';
 import AdminStaff from './pages/admin/AdminStaff';
+import AdminBlogs from './pages/admin/AdminBlogs';
+import BlogList from './pages/BlogList';
+import BlogDetail from './pages/BlogDetail';
+import GuestTrackOrder from './pages/GuestTrackOrder';
+import AdminReports from './pages/admin/AdminReports';
 import ComingSoon from './pages/ComingSoon';
+import InfoPages from './pages/InfoPages';
 
 
 export default function App() {
@@ -66,6 +72,9 @@ export default function App() {
         <Route path="/lookbook" element={<Lookbook />} />
         <Route path="/search" element={<Search />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/track-order" element={<GuestTrackOrder />} />
+        <Route path="/blog" element={<BlogList />} />
+        <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/empty-states" element={<EmptyStates />} />
 
         {/* Catalog Sub-routes */}
@@ -110,10 +119,15 @@ export default function App() {
         <Route path="/forgot-password" element={<Login />} />
 
         {/* Informational Pages */}
-        <Route path="/about" element={<ComingSoon title="About Us" />} />
-        <Route path="/faqs" element={<Contact />} />
-        <Route path="/terms" element={<ComingSoon title="Terms & Conditions" />} />
-        <Route path="/privacy-policy" element={<ComingSoon title="Privacy Policy" />} />
+        <Route path="/info/:pageKey" element={<InfoPages />} />
+        <Route path="/about" element={<Navigate to="/info/about" replace />} />
+        <Route path="/size-guide" element={<Navigate to="/info/size-guide" replace />} />
+        <Route path="/faqs" element={<Navigate to="/info/faqs" replace />} />
+        <Route path="/terms" element={<Navigate to="/info/terms" replace />} />
+        <Route path="/privacy-policy" element={<Navigate to="/info/privacy-policy" replace />} />
+        <Route path="/shipping-policy" element={<Navigate to="/info/shipping-policy" replace />} />
+        <Route path="/return-policy" element={<Navigate to="/info/return-policy" replace />} />
+        <Route path="/careers" element={<Navigate to="/info/careers" replace />} />
         <Route path="*" element={<ComingSoon title="404 — Page Not Found" />} />
       </Route>
 
@@ -128,6 +142,8 @@ export default function App() {
         <Route path="reviews" element={<AdminReviews />} />
         <Route path="coupons" element={<AdminMarketing />} />
         <Route path="media" element={<AdminMediaLibrary />} />
+        <Route path="blogs" element={<AdminBlogs />} />
+        <Route path="reports" element={<AdminReports />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="staff" element={<AdminStaff />} />

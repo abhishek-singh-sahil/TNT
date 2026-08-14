@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import TrustStrip from '../components/common/TrustStrip';
 import AccountSidebar from '../components/layout/AccountSidebar';
-import { orderApi, addressApi, authApi } from '../api/services';
+import { orderApi, addressApi, authApi, marketingApi } from '../api/services';
 import { ShoppingBag, Truck, Heart, Star, Settings, ArrowRight, ChevronRight, HelpCircle, LogIn, Shield, Plus, Trash2, Edit2, User, Mail, Phone, CheckCircle, Copy, AlertTriangle, ChevronLeft, CreditCard, Lock, Tag, MapPin, BookOpen, Bell } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout, updateUser } from '../store/authSlice';
@@ -23,6 +23,7 @@ export default function AccountDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
 
   // Resize listener
@@ -56,6 +57,29 @@ export default function AccountDashboard() {
     password: ''
   });
 
+  // Dynamic Support Tickets, Alerts & Notification Prefs
+  const [supportTickets, setSupportTickets] = useState([
+    { id: 'T-101', subject: 'Refund delay for Order #TNT-9943', message: 'I returned the items 4 days ago, haven\'t received payment.', date: '2026-08-10', status: 'RESOLVED', response: 'Refund has been initiated via Razorpay. It will reflect in your account within 24 hours.' },
+  ]);
+  const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
+
+  const [notifPrefs, setNotifPrefs] = useState({
+    orderUpdatesEmail: true,
+    orderUpdatesSMS: true,
+    promotionsEmail: false,
+    promotionsSMS: false,
+    securityEmail: true,
+  });
+
+  const [alertsList, setAlertsList] = useState([
+    { id: 1, text: 'Order #TNT-1834 has been successfully delivered.', date: 'Today at 2:30 PM', read: false },
+    { id: 2, text: 'Your signup welcome bonus of 320 Reward Points has been credited.', date: 'Yesterday', read: true },
+    { id: 3, text: 'Password changed successfully.', date: '4 days ago', read: true },
+  ]);
+
+  const [notifTab, setNotifTab] = useState('alerts');
+  const [printingOrder, setPrintingOrder] = useState(null); // 'alerts' or 'settings'
+
   useEffect(() => {
     if (user) {
       setProfileForm({
@@ -67,6 +91,17 @@ export default function AccountDashboard() {
       });
     }
   }, [user]);
+
+  const fetchCoupons = async () => {
+    try {
+      const res = await marketingApi.getActiveCoupons();
+      if (res.success && res.coupons) {
+        setCoupons(res.coupons);
+      }
+    } catch (err) {
+      console.error('Failed to load active coupons:', err);
+    }
+  };
 
   const loadAddresses = async () => {
     try {
@@ -96,6 +131,7 @@ export default function AccountDashboard() {
     if (!user) return;
     fetchOrders();
     loadAddresses();
+    fetchCoupons();
   }, [user]);
 
   if (!user) {
@@ -213,9 +249,34 @@ export default function AccountDashboard() {
               <p className="text-xs text-muted">
                 Payment: <span className="font-semibold uppercase">{order.payment?.paymentMethod || 'Online Method'}</span> ({order.paymentStatus})
               </p>
-              <p className="text-xs text-ink font-extrabold">
-                Total: {currencySymbol}{order.totalAmount.toLocaleString()}
-              </p>
+              <div className="bg-stone/50 border border-line rounded p-2.5 space-y-1 text-[11px] text-ink font-medium max-w-sm mt-2">
+                <div className="flex justify-between">
+                  <span className="text-muted">Subtotal:</span>
+                  <span>{currencySymbol}{(order.subtotal || order.totalAmount).toLocaleString()}</span>
+                </div>
+                {order.discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600 font-bold">
+                    <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}:</span>
+                    <span>-{currencySymbol}{order.discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                {order.shippingFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Shipping Fee:</span>
+                    <span>+{currencySymbol}{order.shippingFee.toLocaleString()}</span>
+                  </div>
+                )}
+                {order.taxAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Estimated Tax:</span>
+                    <span>+{currencySymbol}{order.taxAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-line pt-1.5 mt-1 font-black text-xs">
+                  <span>Total paid:</span>
+                  <span>{currencySymbol}{order.totalAmount.toLocaleString()}</span>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 {order.items?.map((item) => (
                   <div key={item.id} className="bg-stone text-ink text-[10px] px-2.5 py-1 rounded border border-line">
@@ -228,10 +289,17 @@ export default function AccountDashboard() {
             <div className="flex flex-wrap gap-3">
               <Link
                 to={`/account/orders/${order.orderNumber}/track`}
-                className="px-4 py-2 border border-line text-xs font-bold uppercase rounded hover:bg-stone text-ink transition-all text-center min-w-[120px]"
+                className="px-4 py-2 border border-line text-xs font-bold uppercase rounded hover:bg-stone text-ink transition-all text-center min-w-[100px]"
               >
                 TRACK
               </Link>
+              <button
+                type="button"
+                onClick={() => setPrintingOrder(order)}
+                className="px-4 py-2 border border-line text-xs font-bold uppercase rounded hover:bg-stone text-ink transition-all text-center min-w-[100px]"
+              >
+                INVOICE
+              </button>
             </div>
           </div>
         ))}
@@ -419,24 +487,38 @@ export default function AccountDashboard() {
       {renderBackHeader("Coupons")}
       <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Available Coupons</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-dashed border-ink/40 rounded bg-stone/40 flex justify-between items-center">
-          <div>
-            <span className="bg-ink text-paper text-[10px] font-bold px-2 py-0.5 rounded">WELCOME10</span>
-            <p className="text-xs font-bold text-ink mt-2">10% Off on all items</p>
-            <p className="text-[10px] text-muted">Valid for new customers</p>
-          </div>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText('WELCOME10');
-              toast.success('Copied WELCOME10!');
-            }}
-            className="text-xs font-bold text-ink underline"
-          >
-            COPY
-          </button>
+      {coupons.length === 0 ? (
+        <div className="text-center py-12 bg-stone/20 border border-line rounded-lg">
+          <Tag className="w-8 h-8 text-muted mx-auto mb-2" />
+          <p className="text-xs text-muted font-bold uppercase">No coupons available</p>
+          <p className="text-[10px] text-muted mt-1">Check back later for exclusive deals!</p>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {coupons.map((coupon) => (
+            <div key={coupon.id} className="p-4 border border-dashed border-ink/40 rounded bg-stone/40 flex justify-between items-center">
+              <div>
+                <span className="bg-ink text-paper text-[10px] font-bold px-2 py-0.5 rounded">{coupon.code}</span>
+                <p className="text-xs font-bold text-ink mt-2">{coupon.name}</p>
+                {coupon.description && <p className="text-[10px] text-muted">{coupon.description}</p>}
+                <p className="text-[9px] text-muted font-semibold mt-1">
+                  Discount: {coupon.couponType === 'PERCENTAGE' ? `${coupon.discountValue}%` : `₹${coupon.discountValue}`} Off
+                  {coupon.minOrderAmount > 0 && ` • Min Order: ₹${coupon.minOrderAmount}`}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(coupon.code);
+                  toast.success(`Copied ${coupon.code}!`);
+                }}
+                className="text-xs font-bold text-ink underline uppercase hover:text-ink/80 transition-colors"
+              >
+                COPY
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -512,44 +594,103 @@ export default function AccountDashboard() {
     </div>
   );
 
-  const renderCustomerCare = () => (
-    <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
-      {renderBackHeader("Customer Care")}
-      <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Help & Support</h3>
+  const renderCustomerCare = () => {
+    const handleTicketSubmit = (e) => {
+      e.preventDefault();
+      const newTicket = {
+        id: `T-${Math.floor(100 + Math.random() * 900)}`,
+        subject: ticketForm.subject,
+        message: ticketForm.message,
+        date: new Date().toISOString().split('T')[0],
+        status: 'PENDING',
+      };
+      setSupportTickets([newTicket, ...supportTickets]);
+      setTicketForm({ subject: '', message: '' });
+      toast.success('Support ticket raised! Our team will respond shortly.');
+    };
 
-      <div className="space-y-4">
-        <p className="text-xs text-muted leading-relaxed">
-          Need help with your order, refund, or delivery? Reach out to our dedicated support channels. We typically respond within 2-4 business hours.
-        </p>
+    return (
+      <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
+        {renderBackHeader("Help & Support")}
+        <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Help & Support</h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-          <div className="p-4 border border-line rounded bg-stone/30">
-            <span className="text-[10px] font-bold text-muted block uppercase">CALL HELPLINE</span>
-            <span className="text-sm font-extrabold text-ink">{systemSettings?.sitePhone || '+91 99999 88888'}</span>
-          </div>
-          <div className="p-4 border border-line rounded bg-stone/30">
-            <span className="text-[10px] font-bold text-muted block uppercase">EMAIL SUPPORT</span>
-            <span className="text-sm font-extrabold text-ink">{systemSettings?.siteEmail || 'contact@tntclothing.com'}</span>
-          </div>
-        </div>
+        <div className="space-y-4">
+          <p className="text-xs text-muted leading-relaxed">
+            Need help with your order, refund, or delivery? Reach out to our dedicated support channels. We typically respond within 2-4 business hours.
+          </p>
 
-        <div className="border-t border-line pt-6">
-          <h4 className="text-xs font-extrabold uppercase text-ink mb-3">Send a Direct Ticket</h4>
-          <form onSubmit={(e) => { e.preventDefault(); toast.success('Ticket submitted successfully!'); }} className="space-y-3">
-            <div>
-              <label className="block text-[9px] font-bold uppercase text-ink mb-1">Subject</label>
-              <input type="text" required placeholder="Query regarding Order Delivery/Refund" className="w-full text-xs bg-stone border border-line p-2 rounded focus:outline-none focus:border-ink" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="p-4 border border-line rounded bg-stone/30">
+              <span className="text-[10px] font-bold text-muted block uppercase">CALL HELPLINE</span>
+              <span className="text-sm font-extrabold text-ink">{systemSettings?.sitePhone || '+91 99999 88888'}</span>
             </div>
-            <div>
-              <label className="block text-[9px] font-bold uppercase text-ink mb-1">Message Description</label>
-              <textarea required rows={4} placeholder="Please provide your order number and query details..." className="w-full text-xs bg-stone border border-line p-2 rounded focus:outline-none focus:border-ink" />
+            <div className="p-4 border border-line rounded bg-stone/30">
+              <span className="text-[10px] font-bold text-muted block uppercase">EMAIL SUPPORT</span>
+              <span className="text-sm font-extrabold text-ink">{systemSettings?.siteEmail || 'threadntones25@gmail.com'}</span>
             </div>
-            <button type="submit" className="w-full py-2 bg-ink text-paper text-xs font-bold uppercase rounded">Submit Ticket</button>
-          </form>
+          </div>
+
+          <div className="border-t border-line pt-6">
+            <h4 className="text-xs font-extrabold uppercase text-ink mb-3">Send a Direct Ticket</h4>
+            <form onSubmit={handleTicketSubmit} className="space-y-3">
+              <div>
+                <label className="block text-[9px] font-bold uppercase text-ink mb-1">Subject</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Query regarding Order Delivery/Refund"
+                  value={ticketForm.subject}
+                  onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                  className="w-full text-xs bg-stone border border-line p-2 rounded focus:outline-none focus:border-ink font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold uppercase text-ink mb-1">Message Description</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Please provide your order number and query details..."
+                  value={ticketForm.message}
+                  onChange={(e) => setTicketForm({ ...ticketForm, message: e.target.value })}
+                  className="w-full text-xs bg-stone border border-line p-2 rounded focus:outline-none focus:border-ink font-semibold"
+                />
+              </div>
+              <button type="submit" className="w-full py-2.5 bg-ink text-paper text-xs font-bold uppercase rounded hover:bg-black transition-colors">
+                Submit Ticket
+              </button>
+            </form>
+          </div>
+
+          {/* Raised tickets history */}
+          {supportTickets.length > 0 && (
+            <div className="border-t border-line pt-6 space-y-4">
+              <h4 className="text-xs font-extrabold uppercase text-ink font-sans">Ticket History</h4>
+              <div className="space-y-3">
+                {supportTickets.map(t => (
+                  <div key={t.id} className="p-4 border border-line rounded-lg bg-stone/20 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-ink">#{t.id} - {t.subject}</span>
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border ${t.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                        {t.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted leading-relaxed font-semibold">Message: {t.message}</p>
+                    <span className="text-[9px] text-muted block font-semibold">Raised on {t.date}</span>
+                    {t.response && (
+                      <div className="mt-2 p-2.5 bg-paper rounded border border-line text-[10px] text-ink leading-relaxed space-y-1">
+                        <span className="font-extrabold text-ink uppercase block">Support Agent response:</span>
+                        <p className="font-semibold text-muted/90">{t.response}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTNTVerse = () => (
     <div className="bg-paper border border-line rounded-lg p-6 space-y-4 animate-fadeIn">
@@ -683,18 +824,154 @@ export default function AccountDashboard() {
     </div>
   );
 
-  const renderNotifications = () => (
-    <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
-      {renderBackHeader("Notifications")}
-      <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Notifications</h3>
+  const renderNotifications = () => {
+    const handleMarkAllRead = () => {
+      setAlertsList(alertsList.map(a => ({ ...a, read: true })));
+      toast.success('All alerts marked as read!');
+    };
 
-      <div className="text-center py-16 text-muted space-y-2">
-        <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-line" />
-        <span className="font-bold uppercase text-xs text-ink block">All Caught Up!</span>
-        <p className="text-[10px] text-muted">You have no new alerts or order status update notifications.</p>
+    const handleTogglePref = (key) => {
+      setNotifPrefs({ ...notifPrefs, [key]: !notifPrefs[key] });
+    };
+
+    const handleSaveNotifPref = (e) => {
+      e.preventDefault();
+      toast.success('Notification preferences updated successfully!');
+    };
+
+    return (
+      <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
+        {renderBackHeader("Notifications")}
+        <div className="flex justify-between items-center border-b border-line pb-3">
+          <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider">Notifications</h3>
+          
+          <div className="flex gap-2 text-xs">
+            <button
+              onClick={() => setNotifTab('alerts')}
+              className={`px-3 py-1.5 font-bold rounded uppercase tracking-wider ${notifTab === 'alerts' ? 'bg-ink text-paper' : 'border border-line text-ink'}`}
+            >
+              Alerts
+            </button>
+            <button
+              onClick={() => setNotifTab('settings')}
+              className={`px-3 py-1.5 font-bold rounded uppercase tracking-wider ${notifTab === 'settings' ? 'bg-ink text-paper' : 'border border-line text-ink'}`}
+            >
+              Settings
+            </button>
+          </div>
+        </div>
+
+        {notifTab === 'alerts' ? (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold text-muted uppercase">Recent Activity</span>
+              {alertsList.some(a => !a.read) && (
+                <button onClick={handleMarkAllRead} className="text-[9px] font-bold text-ink underline uppercase hover:text-ink/80">
+                  Mark all as read
+                </button>
+              )}
+            </div>
+
+            {alertsList.length === 0 ? (
+              <div className="text-center py-12 text-muted">
+                <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-line" />
+                <span className="font-bold text-xs uppercase text-ink block">No alerts yet</span>
+              </div>
+            ) : (
+              <div className="divide-y divide-line border border-line rounded-lg overflow-hidden bg-stone/20">
+                {alertsList.map(a => (
+                  <div key={a.id} className={`p-4 flex justify-between items-start gap-4 transition-colors ${a.read ? 'bg-transparent' : 'bg-paper border-l-2 border-ink'}`}>
+                    <div className="space-y-1">
+                      <p className={`text-xs text-ink leading-relaxed ${a.read ? 'font-medium text-muted/95' : 'font-semibold'}`}>{a.text}</p>
+                      <span className="text-[9px] text-muted block font-semibold">{a.date}</span>
+                    </div>
+                    {!a.read && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-ink shrink-0 mt-1.5" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSaveNotifPref} className="space-y-5">
+            <div className="space-y-4">
+              {/* Row 1: Order Updates */}
+              <div className="p-4 bg-stone/30 rounded-lg border border-line space-y-3">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Order & Fulfillment Updates</h4>
+                <p className="text-[10px] text-muted leading-relaxed">Receive instant updates regarding your checkout status, warehouse packaging, AWB generation, and delivery courier schedules.</p>
+                <div className="flex gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.orderUpdatesEmail}
+                      onChange={() => handleTogglePref('orderUpdatesEmail')}
+                      className="rounded border-line text-ink focus:ring-0"
+                    />
+                    <span>Email Alerts</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.orderUpdatesSMS}
+                      onChange={() => handleTogglePref('orderUpdatesSMS')}
+                      className="rounded border-line text-ink focus:ring-0"
+                    />
+                    <span>SMS / WhatsApp Alerts</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Row 2: Promotions */}
+              <div className="p-4 bg-stone/30 rounded-lg border border-line space-y-3">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Promotional Offers & Early Drops</h4>
+                <p className="text-[10px] text-muted leading-relaxed">Be the first to know about upcoming streetwear capsule collections, coupon drops, and VIP styling reward points.</p>
+                <div className="flex gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.promotionsEmail}
+                      onChange={() => handleTogglePref('promotionsEmail')}
+                      className="rounded border-line text-ink focus:ring-0"
+                    />
+                    <span>Email Updates</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.promotionsSMS}
+                      onChange={() => handleTogglePref('promotionsSMS')}
+                      className="rounded border-line text-ink focus:ring-0"
+                    />
+                    <span>SMS alerts</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Row 3: Security */}
+              <div className="p-4 bg-stone/30 rounded-lg border border-line space-y-3">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Account Security & Activity</h4>
+                <p className="text-[10px] text-muted leading-relaxed">Email alerts regarding login attempts, details edits, and password change attempts.</p>
+                <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={notifPrefs.securityEmail}
+                    disabled
+                    className="rounded border-line text-ink opacity-50 cursor-not-allowed"
+                  />
+                  <span>Email Security Codes (Mandatory)</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" className="w-full py-2.5 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded hover:bg-black transition-colors">
+              Save Preferences
+            </button>
+          </form>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   // Desktop Empty-States / General Dashboard Overview
   const renderDashboardOverview = () => (
@@ -752,17 +1029,15 @@ export default function AccountDashboard() {
 
     const menuItems = [
       { label: 'Orders', path: '/account/orders' },
-      { label: 'Customer Care', path: '/account/customercare' },
-      { label: 'TNT Wallet', path: '/account/rewards', isNew: true, subtext: 'Manage rewards and refunds' },
-      { label: 'Saved Cards', path: '/account/savedcards' },
-      { label: 'Address', path: '/account/addresses' },
+      { label: 'Wishlist', path: '/wishlist', badge: wishlistItems.length },
+      { label: 'Addresses', path: '/account/addresses' },
+      { label: 'Returns & Exchanges', path: '/account/returns' },
+      { label: 'TNT Club Rewards', path: '/account/rewards', badge: user.rewardPoints || 320 },
+      { label: 'Coupons', path: '/account/coupons', badge: coupons.length },
+      { label: 'Reviews', path: '/account/reviews' },
       { label: 'Notifications', path: '/account/notifications' },
-      { label: 'How To Return', path: '/account/howtoreturn' },
-      { label: 'Terms & Conditions', path: '/account/terms' },
-      { label: 'Promotions Terms & Conditions', path: '/account/promotions' },
-      { label: 'Returns & Refunds Policy', path: '/account/returns-policy' },
-      { label: 'We Respect Your Privacy', path: '/account/privacy' },
-      { label: 'Fees & Payments', path: '/account/fees' },
+      { label: 'Account Details', path: '/account/details' },
+      { label: 'Help & Support', path: '/account/customercare' },
     ];
 
     return (
@@ -813,12 +1088,23 @@ export default function AccountDashboard() {
           {menuItems.map((item, idx) => (
             <div
               key={idx}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                if (item.path.startsWith('/wishlist')) {
+                  navigate(item.path);
+                } else {
+                  navigate(item.path);
+                }
+              }}
               className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-stone/30 active:bg-stone/50 transition-all"
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-ink uppercase tracking-wide">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-stone text-ink border border-line rounded font-extrabold">
+                      {item.badge}
+                    </span>
+                  )}
                   {item.isNew && (
                     <span className="bg-red-600 text-paper text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                       NEW
@@ -1057,6 +1343,123 @@ export default function AccountDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Invoice Overlay Modal */}
+      {printingOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:relative print:bg-transparent print:p-0 print:z-0 print:border-none print:shadow-none">
+          <div className="bg-paper border border-line rounded-xl p-6 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto print:border-none print:shadow-none print:p-0 print:max-h-none print:overflow-visible print:bg-white print:text-black">
+            
+            {/* Modal Header Controls (Hidden during print) */}
+            <div className="flex justify-between items-center border-b border-line pb-3 print:hidden">
+              <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Purchase Invoice</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-ink text-paper text-[10px] font-bold rounded uppercase hover:bg-ink/90"
+                >
+                  Print Bill
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintingOrder(null)}
+                  className="px-3 py-1.5 border border-line text-[10px] font-bold rounded text-ink uppercase hover:bg-stone"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Bill Info Grid */}
+            <div className="space-y-4">
+              <div className="text-center border-b-2 border-line pb-4">
+                <h2 className="text-xl font-black uppercase text-ink tracking-tight">THREAD & TONES</h2>
+                <p className="text-[10px] text-muted font-bold uppercase">Official Buyer Purchase Receipt</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-[9px] font-bold text-muted uppercase block">ORDER NUMBER</span>
+                  <span className="font-extrabold text-ink">#{printingOrder.orderNumber}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-bold text-muted uppercase block">ORDER DATE</span>
+                  <span className="font-semibold text-ink">{new Date(printingOrder.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-muted uppercase block">BILL TO</span>
+                  <span className="font-extrabold text-ink">{user?.firstName} {user?.lastName || ''}</span>
+                  <span className="text-muted block text-[10px]">{user?.email}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-bold text-muted uppercase block">PAYMENT METHOD</span>
+                  <span className="font-extrabold text-ink uppercase">{printingOrder.payment?.paymentMethod || 'Razorpay / Online'}</span>
+                  <span className="text-muted block text-[10px]">Status: {printingOrder.paymentStatus}</span>
+                </div>
+              </div>
+
+              {/* Items List Table */}
+              <div className="border border-line rounded-lg overflow-hidden mt-4">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-stone font-bold uppercase text-ink border-b border-line">
+                    <tr>
+                      <th className="p-3">Item Description</th>
+                      <th className="p-3 text-center">Qty</th>
+                      <th className="p-3 text-right">Price</th>
+                      <th className="p-3 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {printingOrder.items?.map((item) => (
+                      <tr key={item.id}>
+                        <td className="p-3 font-semibold text-ink">{item.productName}</td>
+                        <td className="p-3 text-center text-muted font-medium">{item.quantity}</td>
+                        <td className="p-3 text-right text-muted font-medium">₹{(item.price || 0).toLocaleString()}</td>
+                        <td className="p-3 text-right text-ink font-bold">₹{((item.price || 0) * item.quantity).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-line bg-stone/40 font-bold">
+                      <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Subtotal</td>
+                      <td className="p-3 text-right text-ink">₹{(printingOrder.subtotal || printingOrder.items?.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)).toLocaleString()}</td>
+                    </tr>
+                    {printingOrder.discountAmount > 0 && (
+                      <tr className="font-bold text-green-600">
+                        <td colSpan="3" className="p-3 text-right uppercase text-[9px]">Discount {printingOrder.couponCode ? `(${printingOrder.couponCode})` : ''}</td>
+                        <td className="p-3 text-right">-₹{printingOrder.discountAmount.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    {printingOrder.shippingFee > 0 && (
+                      <tr className="font-bold">
+                        <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Shipping Fee</td>
+                        <td className="p-3 text-right text-ink">₹{printingOrder.shippingFee.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    {printingOrder.taxAmount > 0 && (
+                      <tr className="font-bold">
+                        <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Estimated Tax</td>
+                        <td className="p-3 text-right text-ink">₹{printingOrder.taxAmount.toLocaleString()}</td>
+                      </tr>
+                    )}
+                    <tr className="border-t border-line bg-stone font-black text-sm">
+                      <td colSpan="3" className="p-3 text-right uppercase text-[10px] text-ink">Grand Total Amount</td>
+                      <td className="p-3 text-right text-ink">₹{printingOrder.totalAmount.toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Thank you note */}
+              <div className="text-center pt-6 border-t border-line text-[10px] text-muted space-y-1.5">
+                <p className="font-bold text-ink">Thank you for shopping with THREAD & TONES</p>
+                <p>For questions or assistance regarding your order, contact hello@tntclothing.com</p>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

@@ -340,3 +340,24 @@ export const deleteWhyChooseUsAdmin = async (req, res) => {
   }
 };
 
+export const getNewsletterSubscribersAdmin = async (req, res) => {
+  try {
+    const subscribers = await prisma.newsletterSubscriber.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json({ success: true, subscribers });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch subscribers', error: error.message });
+  }
+};
+
+export const deleteNewsletterSubscriberAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.newsletterSubscriber.delete({ where: { id } });
+    return res.json({ success: true, message: 'Subscriber removed successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete subscriber', error: error.message });
+  }
+};
+

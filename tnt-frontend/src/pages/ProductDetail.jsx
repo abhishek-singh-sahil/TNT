@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import TrustStrip from '../components/common/TrustStrip';
 import ProductCard from '../components/product/ProductCard';
-import { Star, Heart, ShoppingBag, Truck, RotateCcw, Share2, Ruler, X, AlertTriangle } from 'lucide-react';
+import { Star, Heart, ShoppingBag, Truck, RotateCcw, Share2, Ruler, X, AlertTriangle, Scale } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { addItem } from '../store/cartSlice';
@@ -13,6 +13,7 @@ import { productApi, reviewApi } from '../api/services';
 export default function ProductDetail() {
   const { slug } = useParams();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const currencySymbol = useSelector(selectCurrencySymbol);
 
@@ -31,6 +32,12 @@ export default function ProductDetail() {
 
   // Write Review form state
   const [reviewForm, setReviewForm] = useState({ title: '', comment: '', rating: 5 });
+
+  // Pincode and Compare States
+  const [pincode, setPincode] = useState('');
+  const [pincodeStatus, setPincodeStatus] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+  const [isCompared, setIsCompared] = useState(false);
 
   useEffect(() => {
     async function loadProduct() {
@@ -57,6 +64,30 @@ export default function ProductDetail() {
     loadProduct();
   }, [slug]);
 
+  useEffect(() => {
+    if (!product) return;
+    const saved = JSON.parse(localStorage.getItem('tnt_compare_ids') || '[]');
+    setIsCompared(saved.includes(product.id));
+
+    const viewed = JSON.parse(localStorage.getItem('tnt_recently_viewed') || '[]');
+    const updated = [product.id, ...viewed.filter(id => id !== product.id)].slice(0, 6);
+    localStorage.setItem('tnt_recently_viewed', JSON.stringify(updated));
+  }, [product]);
+
+  useEffect(() => {
+    async function loadCatalog() {
+      try {
+        const res = await productApi.getProducts({ limit: 100 });
+        if (res.success && res.products) {
+          setAllProducts(res.products);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadCatalog();
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center">
@@ -77,6 +108,62 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  const handleCompareToggle = () => {
+    if (!product) return;
+    const saved = JSON.parse(localStorage.getItem('tnt_compare_ids') || '[]');
+    let updated;
+    if (saved.includes(product.id)) {
+      updated = saved.filter(id => id !== product.id);
+      toast.success('Removed from comparison');
+      setIsCompared(false);
+    } else {
+      if (saved.length >= 3) {
+        toast.error('You can compare a maximum of 3 products at a time!');
+        return;
+      }
+      updated = [...saved, product.id];
+      toast.success('Added to comparison');
+      setIsCompared(true);
+    }
+    localStorage.setItem('tnt_compare_ids', JSON.stringify(updated));
+  };
+
+  const handleBuyNow = () => {
+    const matchedVariant = product.variants?.find(
+      (v) => v.color?.name === selectedColor && v.size?.name === selectedSize
+    );
+    const price = product.basePrice ?? 0;
+
+    dispatch(
+      addItem({
+        productId: product.id,
+        variantId: matchedVariant?.id || `${product.id}-${selectedColor}-${selectedSize}`,
+        name: product.name,
+        price: price,
+        color: selectedColor,
+        size: selectedSize,
+        image: selectedImage,
+        qty: quantity,
+      })
+    );
+    navigate('/checkout');
+  };
+
+  const handlePincodeCheck = (e) => {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(pincode)) {
+      toast.error('Please enter a valid 6-digit PIN code');
+      return;
+    }
+    const isExpressEligible = parseInt(pincode) % 2 === 0;
+    setPincodeStatus({
+      estimatedDays: isExpressEligible ? '2-3 Business Days' : '4-5 Business Days',
+      carrier: 'Delhivery / BlueDart',
+      codAvailable: true
+    });
+    toast.success('Delivery coverage checked!');
+  };
 
   const handleAddToCart = () => {
     const matchedVariant = product.variants?.find(
@@ -139,6 +226,19 @@ export default function ProductDetail() {
 
   const uniqueColors = Array.from(new Set(product.variants?.map(v => v.color?.name).filter(Boolean)));
   const uniqueSizes = Array.from(new Set(product.variants?.map(v => v.size?.name).filter(Boolean)));
+
+  const relatedProducts = allProducts
+    .filter(
+      (p) =>
+        p.id !== product.id &&
+        p.categories?.some((c) => product.categories?.some((pc) => pc.id === c.id))
+    )
+    .slice(0, 4);
+
+  const recentlyViewedIds = JSON.parse(localStorage.getItem('tnt_recently_viewed') || '[]');
+  const recentlyViewed = allProducts
+    .filter((p) => p.id !== product.id && recentlyViewedIds.includes(p.id))
+    .slice(0, 4);
 
   return (
     <div className="bg-paper min-h-screen pt-4 pb-16">
@@ -285,29 +385,89 @@ export default function ProductDetail() {
             </div>
 
             {/* Add to Cart Actions */}
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex items-center border border-line rounded-lg bg-stone px-3 py-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+              <div className="flex items-center justify-between border border-line rounded-lg bg-stone px-3 py-3 sm:py-2">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-6 text-base font-bold text-ink">-</button>
                 <span className="w-8 text-center text-sm font-bold text-ink">{quantity}</span>
                 <button onClick={() => setQuantity(quantity + 1)} className="w-6 text-base font-bold text-ink">+</button>
               </div>
 
-              <button
-                onClick={handleAddToCart}
-                className="flex-1 py-4 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-ink/90 transition-all flex items-center justify-center gap-2 shadow-lg"
-              >
-                <ShoppingBag className="w-4 h-4" /> ADD TO CART
-              </button>
+              <div className="flex-1 flex gap-2">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 py-3 bg-ink text-paper text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-ink/90 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" /> ADD TO CART
+                </button>
 
-              <button
-                onClick={() => {
-                  dispatch(toggleWishlist({ productId: product.id, name: product.name, price: product.basePrice, image: selectedImage }));
-                  toast.success('Updated wishlist!');
-                }}
-                className="p-4 border border-line rounded-lg text-ink hover:bg-stone transition-all"
-              >
-                <Heart className="w-5 h-5" />
-              </button>
+                <button
+                  onClick={handleBuyNow}
+                  className="flex-1 py-3 bg-stone border border-line text-ink text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-stone/80 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  BUY NOW
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    dispatch(toggleWishlist({ productId: product.id, name: product.name, price: product.basePrice, image: selectedImage }));
+                    toast.success('Updated wishlist!');
+                  }}
+                  className="p-3 border border-line rounded-lg text-ink hover:bg-stone transition-all"
+                  title="Add to Wishlist"
+                >
+                  <Heart className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleCompareToggle}
+                  className="p-3 border border-line rounded-lg text-ink hover:bg-stone transition-all"
+                  title="Add to Compare"
+                >
+                  <Scale className={`w-4 h-4 ${isCompared ? 'text-ink fill-current' : 'text-muted'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Fabric & Care and Pincode Check */}
+            <div className="space-y-4 border-t border-line pt-6">
+              {/* Fabric & Care */}
+              <div className="bg-stone p-4 rounded-lg border border-line space-y-1.5">
+                <span className="text-[10px] font-bold uppercase text-muted tracking-wider block">Fabric & Care</span>
+                <p className="text-xs font-semibold text-ink leading-relaxed">
+                  {product.washCare || 'Machine wash cold with like colors. Tumble dry low.'}
+                </p>
+                <p className="text-[10px] text-muted leading-relaxed font-semibold">
+                  Fit Style: {product.fit || 'Oversized Streetwear Fit'}
+                </p>
+              </div>
+
+              {/* Delivery Estimation Checker */}
+              <div className="space-y-2">
+                <span className="block text-xs font-bold uppercase text-ink">Delivery Estimate</span>
+                <form onSubmit={handlePincodeCheck} className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength="6"
+                    placeholder="Enter 6-digit Pincode"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                    className="flex-1 bg-stone border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-black transition-colors shrink-0"
+                  >
+                    CHECK
+                  </button>
+                </form>
+                {pincodeStatus && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-[11px] text-emerald-800 space-y-0.5 animate-fadeIn">
+                    <p className="font-bold">Estimated Delivery: {pincodeStatus.estimatedDays}</p>
+                    <p className="text-[10px] text-emerald-700/80 font-medium">Shipped via {pincodeStatus.carrier} (COD {pincodeStatus.codAvailable ? 'Available' : 'Unavailable'})</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Accordion Policy Drawer Triggers */}
@@ -490,6 +650,36 @@ export default function ProductDetail() {
               <p>• Items must be returned in their original packaging with tags intact.</p>
               <p>• Refunds are processed back to your original payment method or UPI wallet within 3 business days of return inspection approval.</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Related Products Section */}
+      {relatedProducts.length > 0 && (
+        <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8 border-t border-line pt-12 mt-16 space-y-6">
+          <div>
+            <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest block">STYLE INSPIRATIONS</span>
+            <h3 className="text-xl font-extrabold text-ink uppercase tracking-tight">Related Products</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recently Viewed Products Section */}
+      {recentlyViewed.length > 0 && (
+        <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8 border-t border-line pt-12 mt-16 space-y-6">
+          <div>
+            <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest block">RECENTLY VIEWED</span>
+            <h3 className="text-xl font-extrabold text-ink uppercase tracking-tight">Your Styling History</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {recentlyViewed.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
           </div>
         </div>
       )}

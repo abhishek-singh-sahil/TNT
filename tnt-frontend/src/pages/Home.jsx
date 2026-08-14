@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/product/ProductCard';
-import { cmsApi } from '../api/services';
+import { cmsApi, productApi } from '../api/services';
 import { ArrowRight, Star, Instagram, Heart, ArrowLeft } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -30,13 +30,23 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(true);
   const [arrivalsIndex, setArrivalsIndex] = useState(0);
+  const [bestSellers, setBestSellers] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
 
   useEffect(() => {
     async function fetchHomeCMS() {
       try {
-        const res = await cmsApi.getHomepageData();
+        const [res, productsRes] = await Promise.all([
+          cmsApi.getHomepageData(),
+          productApi.getProducts({ limit: 100 })
+        ]);
+        
         if (res.success && res.data) {
           setCmsData(res.data);
+        }
+        if (productsRes.success && productsRes.products) {
+          setBestSellers(productsRes.products.filter(p => p.isBestSeller).slice(0, 4));
+          setTrendingProducts(productsRes.products.filter(p => p.isTrending).slice(0, 4));
         }
       } catch (err) {
         console.error('Failed to load dynamic homepage CMS:', err);
@@ -269,6 +279,28 @@ export default function Home() {
           );
         })()}
 
+        {/* Best Sellers Section */}
+        {bestSellers.length > 0 && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div>
+                <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">STREETWEAR HIGHLIGHTS</span>
+                <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
+                  BEST SELLERS
+                </h2>
+              </div>
+              <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
+                VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {bestSellers.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* 5. Promotional Cards (2 Columns side-by-side, 3rd wide on Mobile) */}
         {promotions && promotions.length > 0 && (
           <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -345,6 +377,28 @@ export default function Home() {
             </div>
             <div className="h-64 md:h-[400px] w-full">
               <img src={brandStory.imageUrl} alt="Brand Story" className="w-full h-full object-cover" />
+            </div>
+          </section>
+        )}
+
+        {/* Trending Products Section */}
+        {trendingProducts.length > 0 && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div>
+                <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">ON THE RISE</span>
+                <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
+                  TRENDING NOW
+                </h2>
+              </div>
+              <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
+                VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {trendingProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
             </div>
           </section>
         )}

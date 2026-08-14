@@ -517,3 +517,21 @@ export const validateCouponCode = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Coupon validation failed', error: error.message });
   }
 };
+
+// Public endpoint to get active coupons
+export const getActiveCouponsPublic = async (req, res) => {
+  try {
+    const now = new Date();
+    const coupons = await prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        validFrom: { lte: now },
+        validTill: { gte: now }
+      },
+      orderBy: { priority: 'desc' }
+    });
+    return res.json({ success: true, coupons });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch active coupons', error: error.message });
+  }
+};

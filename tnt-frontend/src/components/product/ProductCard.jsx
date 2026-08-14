@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Star } from 'lucide-react';
+import { Heart, Star, Scale } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleWishlist, selectIsWishlisted } from '../../store/wishlistSlice';
 import { selectCurrencySymbol } from '../../store/settingsSlice';
+import { addItem } from '../../store/cartSlice';
 import toast from 'react-hot-toast';
 
 export default function ProductCard({ product }) {
@@ -22,12 +23,54 @@ export default function ProductCard({ product }) {
       )
     : [];
 
+  const [isCompared, setIsCompared] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('tnt_compare_ids') || '[]');
+    return saved.includes(product.id);
+  });
   const [selectedColor, setSelectedColor] = useState(uniqueColors[0] || null);
 
   const handleWishlist = (e) => {
     e.preventDefault();
     dispatch(toggleWishlist({ productId: product.id, ...product }));
     toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
+  };
+
+  const handleCompare = (e) => {
+    e.preventDefault();
+    const saved = JSON.parse(localStorage.getItem('tnt_compare_ids') || '[]');
+    let updated;
+    if (saved.includes(product.id)) {
+      updated = saved.filter(id => id !== product.id);
+      toast.success('Removed from comparison');
+      setIsCompared(false);
+    } else {
+      if (saved.length >= 3) {
+        toast.error('You can compare a maximum of 3 products at a time!');
+        return;
+      }
+      updated = [...saved, product.id];
+      toast.success('Added to comparison');
+      setIsCompared(true);
+    }
+    localStorage.setItem('tnt_compare_ids', JSON.stringify(updated));
+  };
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault();
+    const defaultVariant = product.variants?.[0];
+    dispatch(
+      addItem({
+        productId: product.id,
+        variantId: defaultVariant?.id || `${product.id}-default`,
+        name: product.name,
+        price: price,
+        color: defaultVariant?.color?.name || 'Default',
+        size: defaultVariant?.size?.name || 'M',
+        image: imageSrc,
+        qty: 1,
+      })
+    );
+    toast.success(`Added ${product.name} to cart!`);
   };
 
   // Find variant matching the selected color to show its price
@@ -62,9 +105,16 @@ export default function ProductCard({ product }) {
         <button
           onClick={handleWishlist}
           aria-label="Toggle wishlist"
-          className="absolute top-2.5 right-2.5 z-10 bg-paper/90 rounded-full p-1.5 hover:bg-paper transition-colors"
+          className="absolute top-2.5 right-2.5 z-10 bg-paper/90 rounded-full p-1.5 hover:bg-paper transition-colors shadow-xs"
         >
-          <Heart size={15} fill={isWishlisted ? '#111111' : 'none'} />
+          <Heart size={14} fill={isWishlisted ? '#111111' : 'none'} className="text-ink" />
+        </button>
+        <button
+          onClick={handleCompare}
+          aria-label="Toggle compare"
+          className="absolute top-11 right-2.5 z-10 bg-paper/90 rounded-full p-1.5 hover:bg-paper transition-colors shadow-xs"
+        >
+          <Scale size={14} className={isCompared ? 'text-ink fill-current' : 'text-muted'} />
         </button>
         {imageSrc ? (
           <img
@@ -78,6 +128,16 @@ export default function ProductCard({ product }) {
             {product.name}
           </div>
         )}
+
+        {/* Quick Add Overlay */}
+        <div className="absolute inset-x-0 bottom-0 p-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10">
+          <button
+            onClick={handleQuickAdd}
+            className="w-full py-2 bg-paper/95 text-ink text-[10px] font-extrabold uppercase tracking-wider rounded border border-line shadow-sm hover:bg-ink hover:text-paper transition-colors"
+          >
+            QUICK ADD
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 space-y-1">

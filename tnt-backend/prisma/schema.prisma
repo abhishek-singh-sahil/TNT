@@ -35,7 +35,10 @@ model User {
   passwordHash       String
   avatar             String?
   isVerified         Boolean             @default(false)
+  isBlocked          Boolean             @default(false)
   rewardPoints       Int                 @default(320)
+  department         String?             @default("Operations")
+  lastLogin          DateTime?           @default(now())
   rewardTier         String              @default("Silver Tier")
   roleId             String
   deletedAt          DateTime?
@@ -169,15 +172,17 @@ model SubCategory {
 }
 
 model Collection {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?
-  bannerImage String?
-  season      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  id           String    @id @default(uuid())
+  name         String    @unique
+  slug         String    @unique
+  description  String?
+  bannerImage  String?
+  season       String?
+  status       String    @default("ACTIVE")
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[]
 
   @@index([slug])
 }

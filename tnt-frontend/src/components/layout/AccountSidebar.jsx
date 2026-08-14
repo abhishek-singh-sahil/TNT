@@ -68,6 +68,22 @@ export default function AccountSidebar() {
         </div>
       </div>
 
+      {/* Staff highlighted Admin Dashboard panel */}
+      {user.role?.name !== 'CUSTOMER' && (
+        <div className="bg-ink text-paper p-4 rounded-lg flex items-center justify-between shadow-sm border border-line/25">
+          <div>
+            <p className="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">STAFF PROFILE</p>
+            <h4 className="text-xs font-extrabold uppercase mt-0.5 text-paper font-bold">Admin Control Panel</h4>
+          </div>
+          <Link
+            to="/admin"
+            className="px-3.5 py-1.5 bg-yellow-400 text-ink text-[10px] font-extrabold uppercase rounded shadow-sm hover:bg-yellow-300 transition-all font-black"
+          >
+            Enter Panel
+          </Link>
+        </div>
+      )}
+
       {/* 2. Navigation items list */}
       <nav className="bg-paper border border-line rounded-lg p-3 space-y-1 shadow-sm">
         {navItems.map((item) => {

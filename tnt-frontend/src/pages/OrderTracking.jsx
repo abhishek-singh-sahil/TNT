@@ -235,11 +235,33 @@ export default function OrderTracking() {
                     ))}
                   </div>
 
-                  <div className="border-t border-line pt-4 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase text-ink">Total Paid</span>
-                    <span className="text-base font-extrabold text-ink">
-                      ₹{order.totalAmount.toLocaleString()}
-                    </span>
+                  <div className="border-t border-line pt-4 space-y-1.5 text-xs text-ink font-medium max-w-sm ml-auto">
+                    <div className="flex justify-between">
+                      <span className="text-muted">Subtotal:</span>
+                      <span>₹{(order.subtotal || order.totalAmount).toLocaleString()}</span>
+                    </div>
+                    {order.discountAmount > 0 && (
+                      <div className="flex justify-between text-green-600 font-bold">
+                        <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}:</span>
+                        <span>-₹{order.discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {order.shippingFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Shipping Fee:</span>
+                        <span>+₹{order.shippingFee.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {order.taxAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Estimated Tax:</span>
+                        <span>+₹{order.taxAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t border-line pt-1.5 mt-1 font-black text-sm">
+                      <span>Total Paid:</span>
+                      <span>₹{order.totalAmount.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
               </div>

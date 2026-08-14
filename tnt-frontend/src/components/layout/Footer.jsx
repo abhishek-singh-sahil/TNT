@@ -14,7 +14,7 @@ const shop = [
   { label: 'Sale', to: '/sale' },
 ];
 const help = [
-  { label: 'Track Your Order', to: '/account/orders' },
+  { label: 'Track Your Order', to: '/track-order' },
   { label: 'Returns & Exchanges', to: '/account/returns' },
   { label: 'Shipping Policy', to: '/shipping-policy' },
   { label: 'FAQs', to: '/faqs' },

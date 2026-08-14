@@ -66,14 +66,32 @@ export const adminApi = {
   getAuditLogs: () => apiClient.get('/admin/audit-logs'),
   getCategories: () => apiClient.get('/admin/categories'),
   createCategory: (payload) => apiClient.post('/admin/categories', payload),
-  getCustomers: () => apiClient.get('/admin/customers'),
-  getReviews: () => apiClient.get('/admin/reviews'),
+  getCustomers: (params) => apiClient.get('/admin/customers', { params }),
+  getCustomerStats: (params) => apiClient.get('/admin/customers/stats', { params }),
+  getCustomerById: (id) => apiClient.get(`/admin/customers/${id}`),
+  getCustomerOrders: (id, params) => apiClient.get(`/admin/customers/${id}/orders`, { params }),
+  createCustomer: (payload) => apiClient.post('/admin/customers', payload),
+  getCustomerLocations: () => apiClient.get('/admin/customers/locations'),
+  bulkCustomerAction: (action, ids) => apiClient.post('/admin/customers/bulk-action', { action, ids }),
+  exportCustomersUrl: (params) => `${apiClient.defaults.baseURL || ''}/admin/customers/export?${new URLSearchParams(params).toString()}`,
+  getReviews: (params) => apiClient.get('/admin/reviews', { params }),
+  getReviewStats: (params) => apiClient.get('/admin/reviews/stats', { params }),
+  updateReviewStatus: (id, status) => apiClient.put(`/admin/reviews/${id}/status`, { status }),
+  bulkReviewAction: (action, ids) => apiClient.post('/admin/reviews/bulk-action', { action, ids }),
   deleteReview: (id) => apiClient.delete(`/admin/reviews/${id}`),
-  getOrders: () => apiClient.get('/admin/orders'),
+  exportReviewsUrl: (params) => `${apiClient.defaults.baseURL || ''}/admin/reviews/export?${new URLSearchParams(params).toString()}`,
+  getOrders: (params) => apiClient.get('/admin/orders', { params }),
+  getOrderStats: (params) => apiClient.get('/admin/orders/stats', { params }),
+  getOrderTabCounts: (params) => apiClient.get('/admin/orders/tab-counts', { params }),
+  getOrderById: (id) => apiClient.get(`/admin/orders/${id}`),
+  createOrder: (payload) => apiClient.post('/admin/orders', payload),
+  exportOrdersUrl: (params) => `${apiClient.defaults.baseURL || ''}/admin/orders/export?${new URLSearchParams(params).toString()}`,
   updateOrderStatus: (id, status) => apiClient.put(`/admin/orders/${id}/status`, { status }),
   updateOrderTracking: (id, payload) => apiClient.put(`/admin/orders/${id}/tracking`, payload),
   updateCustomer: (id, payload) => apiClient.put(`/admin/customers/${id}`, payload),
   deleteCustomer: (id) => apiClient.delete(`/admin/customers/${id}`),
+  getNewsletterSubscribers: () => apiClient.get('/admin/newsletter/subscribers'),
+  deleteNewsletterSubscriber: (id) => apiClient.delete(`/admin/newsletter/subscribers/${id}`),
   sendBlastEmail: (payload) => apiClient.post('/admin/email-blast', payload),
   getReturns: () => apiClient.get('/admin/returns'),
   updateReturnRequest: (id, status) => apiClient.put(`/admin/returns/${id}`, { status }),
@@ -111,15 +129,36 @@ export const marketingApi = {
   createSale: (payload) => apiClient.post('/admin/sales', payload),
   updateSale: (id, payload) => apiClient.put(`/admin/sales/${id}`, payload),
   deleteSale: (id) => apiClient.delete(`/admin/sales/${id}`),
-  validateCoupon: (payload) => apiClient.post('/marketing/validate-coupon', payload)
+  validateCoupon: (payload) => apiClient.post('/marketing/validate-coupon', payload),
+  getActiveCoupons: () => apiClient.get('/marketing/active-coupons')
 };
 
 export const mediaApi = {
   getMedia: (params) => apiClient.get('/admin/media', { params }),
-  uploadMedia: (formData) => apiClient.post('/admin/media/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadMedia: (formData, onUploadProgress) => apiClient.post('/admin/media/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress
+  }),
   syncCloudinary: () => apiClient.post('/admin/media/sync'),
   renameMedia: (id, newFilename) => apiClient.put(`/admin/media/${id}/rename`, { newFilename }),
-  deleteMedia: (id, forceDelete = false) => apiClient.delete(`/admin/media/${id}`, { data: { forceDelete } })
+  deleteMedia: (id, forceDelete = false) => apiClient.delete(`/admin/media/${id}`, { data: { forceDelete } }),
+  getStats: () => apiClient.get('/admin/media/stats'),
+  getFolders: () => apiClient.get('/admin/media/folders'),
+  moveMedia: (id, folder) => apiClient.put(`/admin/media/${id}/move`, { folder }),
+  bulkDelete: (ids, forceDelete = false) => apiClient.post('/admin/media/bulk-delete', { ids, forceDelete }),
+  downloadMediaUrl: (id) => `${apiClient.defaults.baseURL || ''}/admin/media/${id}/download`
+};
+
+export const blogApi = {
+  getBlogs: (params) => apiClient.get('/blogs', { params }),
+  getBlogBySlug: (slug) => apiClient.get(`/blogs/${slug}`),
+  createBlog: (payload) => apiClient.post('/admin/blogs', payload),
+  updateBlog: (id, payload) => apiClient.put(`/admin/blogs/${id}`, payload),
+  deleteBlog: (id) => apiClient.delete(`/admin/blogs/${id}`)
+};
+
+export const reportsApi = {
+  getReports: (params) => apiClient.get('/admin/reports', { params })
 };
 
 

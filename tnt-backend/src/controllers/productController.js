@@ -216,7 +216,19 @@ export const getProductBySlug = async (req, res) => {
 
     const productWithSale = await resolveProductDiscounts(product);
 
-    return res.json({ success: true, product: productWithSale });
+    const seo = await prisma.sEO.findUnique({
+      where: { page: `product-${product.id}` }
+    });
+
+    return res.json({
+      success: true,
+      product: {
+        ...productWithSale,
+        seoTitle: seo?.title || '',
+        seoDescription: seo?.description || '',
+        seoKeywords: seo?.keywords || ''
+      }
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch product', error: error.message });
   }
@@ -305,6 +317,24 @@ export const createProduct = async (req, res) => {
         variants: { include: { color: true, size: true } }
       }
     });
+
+    const { seoTitle, seoDescription, seoKeywords } = req.body;
+    if (seoTitle || seoDescription) {
+      await prisma.sEO.upsert({
+        where: { page: `product-${product.id}` },
+        update: {
+          title: seoTitle || name,
+          description: seoDescription || description || name,
+          keywords: seoKeywords || ''
+        },
+        create: {
+          page: `product-${product.id}`,
+          title: seoTitle || name,
+          description: seoDescription || description || name,
+          keywords: seoKeywords || ''
+        }
+      });
+    }
 
     return res.status(201).json({ success: true, message: 'Product created successfully', product });
   } catch (error) {
@@ -506,6 +536,24 @@ export const updateProduct = async (req, res) => {
         variants: { include: { color: true, size: true } }
       }
     });
+
+    const { seoTitle, seoDescription, seoKeywords } = req.body;
+    if (seoTitle !== undefined || seoDescription !== undefined) {
+      await prisma.sEO.upsert({
+        where: { page: `product-${product.id}` },
+        update: {
+          title: seoTitle || name || product.name,
+          description: seoDescription || description || product.description || product.name,
+          keywords: seoKeywords || ''
+        },
+        create: {
+          page: `product-${product.id}`,
+          title: seoTitle || name || product.name,
+          description: seoDescription || description || product.description || product.name,
+          keywords: seoKeywords || ''
+        }
+      });
+    }
 
     return res.json({ success: true, message: 'Product updated successfully', product });
   } catch (error) {

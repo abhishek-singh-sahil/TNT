@@ -35,7 +35,10 @@ export default function AdminProducts() {
     isAccessories: false,
     collectionId: '',
     images: [],
-    variants: []
+    variants: [],
+    seoTitle: '',
+    seoDescription: '',
+    seoKeywords: ''
   });
 
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
@@ -99,7 +102,10 @@ export default function AdminProducts() {
         sku: v.sku,
         price: v.price || '',
         stock: v.stock || '50'
-      })) || []
+      })) || [],
+      seoTitle: prod.seoTitle || '',
+      seoDescription: prod.seoDescription || '',
+      seoKeywords: prod.seoKeywords || ''
     });
     setCreateModalOpen(true);
   };
@@ -124,6 +130,88 @@ export default function AdminProducts() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    if (products.length === 0) {
+      toast.error('No products to export');
+      return;
+    }
+    const headers = ['Name', 'SKU', 'BasePrice', 'Description'];
+    const rows = products.map(p => [
+      `"${p.name.replace(/"/g, '""')}"`,
+      p.sku,
+      p.basePrice,
+      `"${(p.description || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `tnt_products_catalog_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Product catalog exported successfully as CSV!');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const text = evt.target.result;
+        const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+        if (lines.length <= 1) {
+          toast.error('CSV file is empty or missing data rows');
+          return;
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+          if (cols.length < 3) continue;
+
+          const name = cols[0];
+          const sku = cols[1];
+          const basePrice = cols[2];
+          const description = cols[3] || name;
+
+          try {
+            const res = await productApi.createProduct({
+              name,
+              sku,
+              basePrice: parseFloat(basePrice || '0'),
+              description,
+              isNewArrival: true,
+              isFeatured: false,
+              categoryIds: categories.length > 0 ? [categories[0].id] : [],
+              variants: [
+                { sizeName: 'M', colorName: 'Default Black', colorHex: '#000000', price: parseFloat(basePrice || '0'), stock: 100 }
+              ]
+            });
+            if (res.success) {
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          } catch (err) {
+            errorCount++;
+          }
+        }
+
+        toast.success(`CSV Import Complete: Successfully imported ${successCount} products! (${errorCount} errors)`);
+        loadData();
+      } catch (err) {
+        toast.error('Failed to parse CSV file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleAddColorPicker = async () => {
@@ -295,7 +383,10 @@ export default function AdminProducts() {
       isAccessories: false,
       collectionId: '',
       images: [],
-      variants: []
+      variants: [],
+      seoTitle: '',
+      seoDescription: '',
+      seoKeywords: ''
     });
     setCreateModalOpen(true);
   };
@@ -314,12 +405,31 @@ export default function AdminProducts() {
           <h1 className="text-2xl font-extrabold uppercase tracking-tight text-ink">PRODUCT CATALOG MANAGEMENT (CRUD)</h1>
           <p className="text-xs text-muted">Click any row below to edit details, add images, select category checkboxes, and update variants.</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded hover:bg-ink/90 flex items-center gap-2 shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> NEW PRODUCT
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 border border-line text-xs font-bold uppercase rounded hover:bg-stone transition-all flex items-center gap-1.5"
+          >
+            📥 Export CSV
+          </button>
+          
+          <label className="px-4 py-2.5 border border-line text-xs font-bold uppercase rounded hover:bg-stone transition-all flex items-center gap-1.5 cursor-pointer">
+            📤 Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="hidden"
+            />
+          </label>
+
+          <button
+            onClick={openCreateModal}
+            className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded hover:bg-ink/90 flex items-center gap-2 shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> NEW PRODUCT
+          </button>
+        </div>
       </div>
 
       {/* Search & Stats bar */}
@@ -716,6 +826,43 @@ export default function AdminProducts() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Row 6: SEO Meta tags */}
+              <div className="border-t border-line pt-4 space-y-3">
+                <span className="font-extrabold text-[10px] uppercase text-muted tracking-wider block">SEO & META TAGS (OPTIONAL)</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase text-ink mb-1">SEO Title Tag</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Oversized Minimal Tee | TNT Clothing"
+                      value={formData.seoTitle}
+                      onChange={(e) => setFormData({ ...formData, seoTitle: e.target.value })}
+                      className="w-full bg-stone border border-line rounded px-2.5 py-1.5 text-xs text-ink focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase text-ink mb-1">SEO Meta Keywords</label>
+                    <input
+                      type="text"
+                      placeholder="streetwear, oversized, minimal, cotton tee"
+                      value={formData.seoKeywords}
+                      onChange={(e) => setFormData({ ...formData, seoKeywords: e.target.value })}
+                      className="w-full bg-stone border border-line rounded px-2.5 py-1.5 text-xs text-ink focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-bold uppercase text-ink mb-1">SEO Meta Description</label>
+                    <textarea
+                      rows={2}
+                      placeholder="TNT premium streetwear collection item. Detailed features, size specs, and fabric guidelines."
+                      value={formData.seoDescription}
+                      onChange={(e) => setFormData({ ...formData, seoDescription: e.target.value })}
+                      className="w-full bg-stone border border-line rounded px-2.5 py-1.5 text-xs text-ink focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2 border-t border-line">

@@ -109,6 +109,10 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, message: 'Your account has been suspended by an administrator.' });
+    }
+
     // Check OTP verification status
     if (!user.isVerified) {
       await sendVerificationOTP(user);
@@ -119,6 +123,12 @@ export const login = async (req, res) => {
         message: 'Account not verified. A verification OTP code has been sent to your email.'
       });
     }
+
+    // Update lastLogin timestamp in database
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
 
     const token = generateToken(user.id);
     delete user.passwordHash;

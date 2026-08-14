@@ -12,7 +12,12 @@ export const getAdminDashboardMetrics = async (req, res) => {
     ]);
 
     const revenueResult = await prisma.order.aggregate({
-      where: { paymentStatus: 'SUCCESS' },
+      where: {
+        OR: [
+          { paymentStatus: 'SUCCESS' },
+          { orderStatus: 'DELIVERED' }
+        ]
+      },
       _sum: { totalAmount: true },
     });
 
@@ -100,76 +105,1267 @@ export const createCategoryAdmin = async (req, res) => {
 
 export const getCustomersAdmin = async (req, res) => {
   try {
-    const customers = await prisma.user.findMany({
-      where: { role: { name: 'CUSTOMER' } },
+    const {
+      page = '1',
+      limit = '10',
+      search = '',
+      status = 'all',
+      location = 'all',
+      sort = 'newest'
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, parseInt(limit) || 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = { role: { name: 'CUSTOMER' } };
+
+    if (status === 'active') where.isBlocked = false;
+    else if (status === 'inactive') where.isBlocked = true;
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { id: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Location filter via address city
+    if (location && location !== 'all') {
+      where.addresses = { some: { city: { equals: location, mode: 'insensitive' } } };
+    }
+
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'oldest') orderBy = { createdAt: 'asc' };
+    else if (sort === 'name') orderBy = { firstName: 'asc' };
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          avatar: true,
+          isBlocked: true,
+          isVerified: true,
+          rewardPoints: true,
+          createdAt: true,
+          addresses: {
+            where: { isDefault: true },
+            select: { city: true, state: true },
+            take: 1
+          },
+          orders: {
+            where: {
+              OR: [{ paymentStatus: 'SUCCESS' }, { orderStatus: 'DELIVERED' }]
+            },
+            select: { totalAmount: true }
+          }
+        }
+      })
+    ]);
+
+    const customers = users.map(u => {
+      const address = u.addresses?.[0];
+      const location = address ? `${address.city}, ${address.state}` : null;
+      const orderCount = u.orders.length;
+      const totalSpent = u.orders.reduce((s, o) => s + o.totalAmount, 0);
+      return {
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName || '',
+        email: u.email,
+        phone: u.phone || null,
+        avatar: u.avatar || null,
+        isBlocked: u.isBlocked,
+        isVerified: u.isVerified,
+        rewardPoints: u.rewardPoints,
+        createdAt: u.createdAt,
+        location,
+        orderCount,
+        totalSpent
+      };
+    });
+
+    return res.json({
+      success: true,
+      customers,
+      pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch customers', error: error.message });
+  }
+};
+
+export const getCustomerStatsAdmin = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+    let start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    let end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 1);
+    const prevEnd = new Date(start.getTime() - 1);
+
+    const validOrderWhere = { OR: [{ paymentStatus: 'SUCCESS' }, { orderStatus: 'DELIVERED' }] };
+
+    const [
+      totalCustomers,
+      newCustomersCurrent, newCustomersPrev,
+      ordersCurrent, ordersPrev,
+      revenueAggCurrent, revenueAggPrev,
+      totalCustomersPrev
+    ] = await Promise.all([
+      prisma.user.count({ where: { role: { name: 'CUSTOMER' } } }),
+      prisma.user.count({ where: { role: { name: 'CUSTOMER' }, createdAt: { gte: start, lte: end } } }),
+      prisma.user.count({ where: { role: { name: 'CUSTOMER' }, createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.order.count({ where: { ...validOrderWhere, createdAt: { gte: start, lte: end } } }),
+      prisma.order.count({ where: { ...validOrderWhere, createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.order.aggregate({ where: { ...validOrderWhere, createdAt: { gte: start, lte: end } }, _sum: { totalAmount: true }, _count: true }),
+      prisma.order.aggregate({ where: { ...validOrderWhere, createdAt: { gte: prevStart, lte: prevEnd } }, _sum: { totalAmount: true }, _count: true }),
+      prisma.user.count({ where: { role: { name: 'CUSTOMER' }, createdAt: { lt: start } } })
+    ]);
+
+    const calcChange = (cur, prev) => (prev === 0 ? null : parseFloat((((cur - prev) / prev) * 100).toFixed(1)));
+
+    const avgCurrent = revenueAggCurrent._count > 0 ? (revenueAggCurrent._sum.totalAmount || 0) / revenueAggCurrent._count : 0;
+    const avgPrev = revenueAggPrev._count > 0 ? (revenueAggPrev._sum.totalAmount || 0) / revenueAggPrev._count : 0;
+
+    return res.json({
+      success: true,
+      stats: {
+        totalCustomers,
+        newCustomers: newCustomersCurrent,
+        newCustomersChange: calcChange(newCustomersCurrent, newCustomersPrev),
+        totalOrders: ordersCurrent,
+        totalOrdersChange: calcChange(ordersCurrent, ordersPrev),
+        avgOrderValue: parseFloat(avgCurrent.toFixed(2)),
+        avgOrderValueChange: calcChange(avgCurrent, avgPrev),
+        totalCustomersChange: calcChange(totalCustomers, totalCustomersPrev + totalCustomers)
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch customer statistics', error: error.message });
+  }
+};
+
+export const getCustomerByIdAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { id },
       select: {
         id: true,
         firstName: true,
         lastName: true,
         email: true,
         phone: true,
+        avatar: true,
+        isBlocked: true,
+        isVerified: true,
         rewardPoints: true,
         createdAt: true,
+        addresses: { orderBy: { isDefault: 'desc' }, take: 3 },
+        orders: {
+          where: { OR: [{ paymentStatus: 'SUCCESS' }, { orderStatus: 'DELIVERED' }] },
+          select: { totalAmount: true }
+        }
       }
     });
-    return res.json({ success: true, customers });
+
+    if (!user) return res.status(404).json({ success: false, message: 'Customer not found' });
+
+    const defaultAddr = user.addresses?.[0];
+    const totalOrders = user.orders.length;
+    const totalSpent = user.orders.reduce((s, o) => s + o.totalAmount, 0);
+
+    return res.json({
+      success: true,
+      customer: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName || '',
+        email: user.email,
+        phone: user.phone || null,
+        avatar: user.avatar || null,
+        isBlocked: user.isBlocked,
+        isVerified: user.isVerified,
+        rewardPoints: user.rewardPoints,
+        createdAt: user.createdAt,
+        location: defaultAddr ? `${defaultAddr.city}, ${defaultAddr.state}` : null,
+        addresses: user.addresses,
+        totalOrders,
+        totalSpent
+      }
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch customers', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to fetch customer', error: error.message });
   }
+};
+
+export const getCustomerOrdersAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = '8' } = req.query;
+    const limitNum = Math.min(50, parseInt(limit) || 8);
+
+    const orders = await prisma.order.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' },
+      take: limitNum,
+      include: {
+        items: {
+          take: 1,
+          include: {
+            product: { select: { name: true, images: { where: { isPrimary: true }, take: 1 } } }
+          }
+        }
+      }
+    });
+
+    const formatted = orders.map(o => {
+      const firstItem = o.items?.[0];
+      const productName = firstItem?.product?.name || firstItem?.productName || 'Order';
+      const productImage = firstItem?.product?.images?.[0]?.url || null;
+      return {
+        id: o.id,
+        orderNumber: o.orderNumber,
+        totalAmount: o.totalAmount,
+        orderStatus: o.orderStatus,
+        paymentStatus: o.paymentStatus,
+        createdAt: o.createdAt,
+        productName,
+        productImage,
+        itemCount: o.items?.length || 0
+      };
+    });
+
+    return res.json({ success: true, orders: formatted });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch customer orders', error: error.message });
+  }
+};
+
+export const createCustomerAdmin = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, password, city, state } = req.body;
+
+    if (!firstName || !email || !password) {
+      return res.status(400).json({ success: false, message: 'First name, email, and password are required' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'A customer with this email already exists' });
+    }
+
+    const { default: bcrypt } = await import('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const customerRole = await prisma.role.findFirst({ where: { name: 'CUSTOMER' } });
+    if (!customerRole) {
+      return res.status(500).json({ success: false, message: 'CUSTOMER role not found in database' });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        firstName,
+        lastName: lastName || null,
+        email,
+        phone: phone || null,
+        passwordHash,
+        roleId: customerRole.id,
+        isVerified: true,
+        rewardPoints: 320
+      }
+    });
+
+    if (city && state) {
+      await prisma.address.create({
+        data: {
+          userId: newUser.id,
+          fullName: `${firstName} ${lastName || ''}`.trim(),
+          phone: phone || 'N/A',
+          street: 'N/A',
+          city,
+          state,
+          postalCode: '000000',
+          country: 'India',
+          isDefault: true,
+          type: 'Home'
+        }
+      });
+    }
+
+    return res.status(201).json({ success: true, message: 'Customer account created successfully', customerId: newUser.id });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create customer', error: error.message });
+  }
+};
+
+export const getCustomerLocationsAdmin = async (req, res) => {
+  try {
+    const cities = await prisma.address.findMany({
+      select: { city: true },
+      distinct: ['city'],
+      orderBy: { city: 'asc' },
+      where: { city: { not: '' } }
+    });
+    const locations = cities.map(a => a.city).filter(Boolean);
+    return res.json({ success: true, locations });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch locations', error: error.message });
+  }
+};
+
+export const exportCustomersAdmin = async (req, res) => {
+  try {
+    const { search = '', status = 'all', location = 'all' } = req.query;
+
+    const where = { role: { name: 'CUSTOMER' } };
+    if (status === 'active') where.isBlocked = false;
+    else if (status === 'inactive') where.isBlocked = true;
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    if (location && location !== 'all') {
+      where.addresses = { some: { city: { equals: location, mode: 'insensitive' } } };
+    }
+
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, firstName: true, lastName: true, email: true, phone: true,
+        isBlocked: true, createdAt: true, rewardPoints: true,
+        addresses: { where: { isDefault: true }, select: { city: true, state: true }, take: 1 },
+        orders: {
+          where: { OR: [{ paymentStatus: 'SUCCESS' }, { orderStatus: 'DELIVERED' }] },
+          select: { totalAmount: true }
+        }
+      }
+    });
+
+    let csv = 'Customer ID,First Name,Last Name,Email,Phone,Orders,Total Spent,Status,Location,Member Since,Reward Points\n';
+    users.forEach(u => {
+      const name1 = (u.firstName || '').replace(/"/g, '""');
+      const name2 = (u.lastName || '').replace(/"/g, '""');
+      const email = (u.email || '').replace(/"/g, '""');
+      const phone = (u.phone || 'N/A').replace(/"/g, '""');
+      const addr = u.addresses?.[0];
+      const loc = addr ? `${addr.city}, ${addr.state}` : 'N/A';
+      const orders = u.orders.length;
+      const spent = u.orders.reduce((s, o) => s + o.totalAmount, 0).toFixed(2);
+      const statusStr = u.isBlocked ? 'Inactive' : 'Active';
+      const joined = new Date(u.createdAt).toISOString().split('T')[0];
+      csv += `"${u.id}","${name1}","${name2}","${email}","${phone}",${orders},${spent},"${statusStr}","${loc}","${joined}",${u.rewardPoints}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=tnt-customers-${Date.now()}.csv`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to export customers', error: error.message });
+  }
+};
+
+export const bulkCustomerActionAdmin = async (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No customer IDs provided' });
+    }
+
+    if (action === 'ACTIVATE') {
+      await prisma.user.updateMany({ where: { id: { in: ids } }, data: { isBlocked: false } });
+    } else if (action === 'DEACTIVATE') {
+      await prisma.user.updateMany({ where: { id: { in: ids } }, data: { isBlocked: true } });
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid bulk action type' });
+    }
+
+    return res.json({ success: true, message: `Bulk ${action} applied to ${ids.length} customer(s)` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to execute bulk action', error: error.message });
+  }
+};
+
+// Helper to recalculate average rating and review count of a product based on PUBLISHED reviews
+const recalculateProductRating = async (productId) => {
+  const reviews = await prisma.review.findMany({
+    where: { productId, status: 'PUBLISHED' }
+  });
+  const count = reviews.length;
+  const avgRating = count > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / count) : 0.0;
+  
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      rating: parseFloat(avgRating.toFixed(1)),
+      reviewCount: count
+    }
+  });
 };
 
 export const getReviewsAdmin = async (req, res) => {
   try {
-    const reviews = await prisma.review.findMany({
-      include: {
-        user: { select: { firstName: true, email: true } },
-        product: { select: { name: true } }
-      },
-      orderBy: { createdAt: 'desc' }
+    const {
+      page = '1',
+      limit = '10',
+      search = '',
+      productId = 'all',
+      rating = 'all',
+      status = 'all',
+      startDate,
+      endDate,
+      sort = 'newest'
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, parseInt(limit) || 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = {};
+
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    if (rating && rating !== 'all') {
+      where.rating = parseInt(rating);
+    }
+
+    if (productId && productId !== 'all') {
+      where.productId = productId;
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { comment: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { product: { name: { contains: search, mode: 'insensitive' } } }
+      ];
+
+      // Support Order Number search
+      if (search.startsWith('#') || search.length > 2) {
+        const cleanSearch = search.replace('#', '');
+        const orders = await prisma.order.findMany({
+          where: { orderNumber: { contains: cleanSearch, mode: 'insensitive' } },
+          include: { items: true }
+        });
+        if (orders.length > 0) {
+          const userProductPairs = [];
+          orders.forEach(o => {
+            o.items.forEach(item => {
+              userProductPairs.push({ userId: o.userId, productId: item.productId });
+            });
+          });
+          if (userProductPairs.length > 0) {
+            where.OR.push({
+              OR: userProductPairs
+            });
+          }
+        }
+      }
+    }
+
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (sort === 'highest') {
+      orderBy = { rating: 'desc' };
+    } else if (sort === 'lowest') {
+      orderBy = { rating: 'asc' };
+    }
+
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy,
+        include: {
+          user: {
+            include: {
+              addresses: {
+                where: { isDefault: true },
+                take: 1
+              }
+            }
+          },
+          product: {
+            include: {
+              images: { where: { isPrimary: true }, take: 1 }
+            }
+          }
+        }
+      })
+    ]);
+
+    // Format results to include purchase verification & order mapping
+    const formattedReviews = await Promise.all(reviews.map(async (r) => {
+      let location = null;
+      let address = r.user?.addresses?.[0];
+      if (!address) {
+        // Fallback to first address if default doesn't exist
+        const anyAddress = await prisma.address.findFirst({
+          where: { userId: r.userId }
+        });
+        if (anyAddress) address = anyAddress;
+      }
+      if (address) {
+        location = `${address.city}, ${address.state}`;
+      }
+
+      // Check if user actually ordered this product
+      const orderItem = await prisma.orderItem.findFirst({
+        where: {
+          order: { userId: r.userId },
+          productId: r.productId
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              orderNumber: true
+            }
+          }
+        }
+      });
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        productId: r.productId,
+        variantInfo: r.variantInfo,
+        rating: r.rating,
+        title: r.title,
+        comment: r.comment,
+        helpfulCount: r.helpfulCount,
+        status: r.status,
+        createdAt: r.createdAt,
+        user: {
+          id: r.user?.id,
+          firstName: r.user?.firstName || 'Anonymous',
+          lastName: r.user?.lastName || '',
+          email: r.user?.email || 'N/A',
+          phone: r.user?.phone || 'N/A',
+          avatar: r.user?.avatar || null,
+          location
+        },
+        product: {
+          id: r.product?.id,
+          name: r.product?.name || 'Unknown Product',
+          sku: r.product?.sku || 'N/A',
+          image: r.product?.images?.[0]?.url || null,
+          rating: r.product?.rating
+        },
+        isVerified: !!orderItem,
+        orderId: orderItem?.order?.id || null,
+        orderNumber: orderItem?.order?.orderNumber || null
+      };
+    }));
+
+    return res.json({
+      success: true,
+      reviews: formattedReviews,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
     });
-    return res.json({ success: true, reviews });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch reviews', error: error.message });
+  }
+};
+
+export const getReviewStatsAdmin = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+
+    let start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    let end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 1);
+    const prevEnd = new Date(start.getTime() - 1);
+
+    // Current metrics
+    const [
+      totalCurrent,
+      approvedCurrent,
+      pendingCurrent,
+      rejectedCurrent
+    ] = await Promise.all([
+      prisma.review.count({ where: { createdAt: { gte: start, lte: end } } }),
+      prisma.review.count({ where: { status: 'PUBLISHED', createdAt: { gte: start, lte: end } } }),
+      prisma.review.count({ where: { status: 'PENDING', createdAt: { gte: start, lte: end } } }),
+      prisma.review.count({ where: { status: 'REJECTED', createdAt: { gte: start, lte: end } } })
+    ]);
+
+    // Previous metrics
+    const [
+      totalPrev,
+      approvedPrev,
+      pendingPrev,
+      rejectedPrev
+    ] = await Promise.all([
+      prisma.review.count({ where: { createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.review.count({ where: { status: 'PUBLISHED', createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.review.count({ where: { status: 'PENDING', createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.review.count({ where: { status: 'REJECTED', createdAt: { gte: prevStart, lte: prevEnd } } })
+    ]);
+
+    const getPctChange = (current, prev) => {
+      if (!prev || prev === 0) return null;
+      return parseFloat((((current - prev) / prev) * 100).toFixed(1));
+    };
+
+    return res.json({
+      success: true,
+      stats: {
+        total: totalCurrent,
+        totalChange: getPctChange(totalCurrent, totalPrev),
+        approved: approvedCurrent,
+        approvedChange: getPctChange(approvedCurrent, approvedPrev),
+        pending: pendingCurrent,
+        pendingChange: getPctChange(pendingCurrent, pendingPrev),
+        rejected: rejectedCurrent,
+        rejectedChange: getPctChange(rejectedCurrent, rejectedPrev)
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch review statistics', error: error.message });
+  }
+};
+
+export const updateReviewStatusAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['PUBLISHED', 'PENDING', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid review status value' });
+    }
+
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+
+    const updated = await prisma.review.update({
+      where: { id },
+      data: { status }
+    });
+
+    await recalculateProductRating(review.productId);
+
+    return res.json({ success: true, message: `Review status updated to ${status} successfully`, review: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update review status', error: error.message });
+  }
+};
+
+export const bulkReviewActionAdmin = async (req, res) => {
+  try {
+    const { action, ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No review IDs specified' });
+    }
+
+    const reviews = await prisma.review.findMany({
+      where: { id: { in: ids } },
+      select: { productId: true }
+    });
+
+    const uniqueProductIds = [...new Set(reviews.map(r => r.productId))];
+
+    if (action === 'APPROVE') {
+      await prisma.review.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'PUBLISHED' }
+      });
+    } else if (action === 'REJECT') {
+      await prisma.review.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'REJECTED' }
+      });
+    } else if (action === 'DELETE') {
+      await prisma.review.deleteMany({
+        where: { id: { in: ids } }
+      });
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action type' });
+    }
+
+    await Promise.all(uniqueProductIds.map(pid => recalculateProductRating(pid)));
+
+    return res.json({ success: true, message: `Bulk action ${action} executed successfully` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to execute bulk action', error: error.message });
+  }
+};
+
+export const exportReviewsAdmin = async (req, res) => {
+  try {
+    const { search, productId, rating, status, startDate, endDate } = req.query;
+
+    const where = {};
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+    if (rating && rating !== 'all') {
+      where.rating = parseInt(rating);
+    }
+    if (productId && productId !== 'all') {
+      where.productId = productId;
+    }
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { comment: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { product: { name: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    const reviews = await prisma.review.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: true,
+        product: true
+      }
+    });
+
+    const reviewsWithOrder = await Promise.all(reviews.map(async (r) => {
+      const orderItem = await prisma.orderItem.findFirst({
+        where: {
+          order: { userId: r.userId },
+          productId: r.productId
+        },
+        include: { order: { select: { orderNumber: true } } }
+      });
+      return {
+        ...r,
+        orderNumber: orderItem?.order?.orderNumber || 'N/A'
+      };
+    }));
+
+    let csv = 'Review ID,Customer Name,Email,Product Name,Rating,Title,Comment,Status,Order Number,Date\n';
+    reviewsWithOrder.forEach(r => {
+      const name = `${r.user?.firstName || 'Anonymous'} ${r.user?.lastName || ''}`.trim().replace(/"/g, '""');
+      const email = (r.user?.email || '').replace(/"/g, '""');
+      const prodName = (r.product?.name || 'Unknown Product').replace(/"/g, '""');
+      const title = (r.title || '').replace(/"/g, '""');
+      const comment = (r.comment || '').replace(/\n/g, ' ').replace(/"/g, '""');
+      const dateStr = r.createdAt.toISOString();
+
+      csv += `"${r.id}","${name}","${email}","${prodName}",${r.rating},"${title}","${comment}","${r.status}","${r.orderNumber}","${dateStr}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=tnt-reviews-${Date.now()}.csv`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to export reviews', error: error.message });
   }
 };
 
 export const deleteReviewAdmin = async (req, res) => {
   try {
     const { id } = req.params;
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+
     await prisma.review.delete({ where: { id } });
+
+    await recalculateProductRating(review.productId);
+
     return res.json({ success: true, message: 'Review deleted successfully' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to delete review', error: error.message });
   }
 };
 
+// ── Status tab → DB status mapping ────────────────────────────────────────────
+const TAB_STATUS_MAP = {
+  pending:    ['PENDING', 'CONFIRMED'],
+  processing: ['PACKED'],
+  shipped:    ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'],
+  delivered:  ['DELIVERED'],
+  cancelled:  ['CANCELLED', 'RETURNED'],
+};
+
+const VALID_TRANSITIONS = {
+  PENDING:          ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED:        ['PACKED', 'CANCELLED'],
+  PACKED:           ['SHIPPED', 'CANCELLED'],
+  SHIPPED:          ['IN_TRANSIT', 'CANCELLED'],
+  IN_TRANSIT:       ['OUT_FOR_DELIVERY', 'CANCELLED'],
+  OUT_FOR_DELIVERY: ['DELIVERED'],
+  DELIVERED:        [],
+  CANCELLED:        [],
+  RETURNED:         [],
+};
+
 export const getOrdersAdmin = async (req, res) => {
   try {
-    const orders = await prisma.order.findMany({
-      include: {
-        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
-        address: true,
-        items: true,
-        tracking: true,
-      },
-      orderBy: { createdAt: 'desc' }
+    const {
+      page = '1',
+      limit = '8',
+      search = '',
+      status = 'all',
+      payment = 'all',
+      sort = 'newest',
+      startDate,
+      endDate
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, parseInt(limit) || 8);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = {};
+
+    // Date range filter
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate)   where.createdAt.lte = new Date(endDate);
+    }
+
+    // Status filter (tab mapping)
+    if (status && status !== 'all') {
+      const statuses = TAB_STATUS_MAP[status.toLowerCase()];
+      if (statuses) where.orderStatus = { in: statuses };
+    }
+
+    // Payment method filter
+    if (payment && payment !== 'all') {
+      const isCod = payment.toLowerCase() === 'cod';
+      where.payment = {
+        paymentMethod: isCod
+          ? { contains: 'COD', mode: 'insensitive' }
+          : { not: { contains: 'COD', mode: 'insensitive' } }
+      };
+    }
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName:  { contains: search, mode: 'insensitive' } } },
+        { user: { email:     { contains: search, mode: 'insensitive' } } },
+        { user: { phone:     { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'oldest')  orderBy = { createdAt: 'asc' };
+    if (sort === 'highest') orderBy = { totalAmount: 'desc' };
+    if (sort === 'lowest')  orderBy = { totalAmount: 'asc' };
+
+    const [total, orders] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy,
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, avatar: true } },
+          address: true,
+          payment: true,
+          tracking: true,
+          items: {
+            include: {
+              product: { select: { images: { where: { isPrimary: true }, take: 1 } } }
+            }
+          }
+        }
+      })
+    ]);
+
+    return res.json({
+      success: true,
+      orders,
+      pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) }
     });
-    return res.json({ success: true, orders });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch admin orders', error: error.message });
+  }
+};
+
+export const getOrderStatsAdmin = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+    let start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    let end   = endDate   ? new Date(endDate)   : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const duration  = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 1);
+    const prevEnd   = new Date(start.getTime() - 1);
+
+    const dateFilter      = { createdAt: { gte: start, lte: end } };
+    const prevDateFilter  = { createdAt: { gte: prevStart, lte: prevEnd } };
+
+    const [
+      totalCur,    totalPrev,
+      pendingCur,  pendingPrev,
+      shippedCur,  shippedPrev,
+      delivCur,    delivPrev,
+      cancelCur,   cancelPrev
+    ] = await Promise.all([
+      prisma.order.count({ where: { ...dateFilter } }),
+      prisma.order.count({ where: { ...prevDateFilter } }),
+      prisma.order.count({ where: { ...dateFilter,     orderStatus: { in: ['PENDING','CONFIRMED'] } } }),
+      prisma.order.count({ where: { ...prevDateFilter, orderStatus: { in: ['PENDING','CONFIRMED'] } } }),
+      prisma.order.count({ where: { ...dateFilter,     orderStatus: { in: ['SHIPPED','IN_TRANSIT','OUT_FOR_DELIVERY'] } } }),
+      prisma.order.count({ where: { ...prevDateFilter, orderStatus: { in: ['SHIPPED','IN_TRANSIT','OUT_FOR_DELIVERY'] } } }),
+      prisma.order.count({ where: { ...dateFilter,     orderStatus: 'DELIVERED' } }),
+      prisma.order.count({ where: { ...prevDateFilter, orderStatus: 'DELIVERED' } }),
+      prisma.order.count({ where: { ...dateFilter,     orderStatus: { in: ['CANCELLED','RETURNED'] } } }),
+      prisma.order.count({ where: { ...prevDateFilter, orderStatus: { in: ['CANCELLED','RETURNED'] } } }),
+    ]);
+
+    const chg = (cur, prev) => prev === 0 ? null : parseFloat((((cur - prev) / prev) * 100).toFixed(1));
+
+    return res.json({
+      success: true,
+      stats: {
+        totalOrders:    totalCur,   totalOrdersChange:    chg(totalCur, totalPrev),
+        pendingOrders:  pendingCur, pendingOrdersChange:  chg(pendingCur, pendingPrev),
+        shippedOrders:  shippedCur, shippedOrdersChange:  chg(shippedCur, shippedPrev),
+        deliveredOrders:delivCur,   deliveredOrdersChange: chg(delivCur, delivPrev),
+        cancelledOrders:cancelCur,  cancelledOrdersChange: chg(cancelCur, cancelPrev),
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch order statistics', error: error.message });
+  }
+};
+
+export const getOrderTabCountsAdmin = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.gte = new Date(startDate);
+      if (endDate)   dateFilter.createdAt.lte = new Date(endDate);
+    }
+
+    const [all, pending, processing, shipped, delivered, cancelled] = await Promise.all([
+      prisma.order.count({ where: { ...dateFilter } }),
+      prisma.order.count({ where: { ...dateFilter, orderStatus: { in: ['PENDING','CONFIRMED'] } } }),
+      prisma.order.count({ where: { ...dateFilter, orderStatus: 'PACKED' } }),
+      prisma.order.count({ where: { ...dateFilter, orderStatus: { in: ['SHIPPED','IN_TRANSIT','OUT_FOR_DELIVERY'] } } }),
+      prisma.order.count({ where: { ...dateFilter, orderStatus: 'DELIVERED' } }),
+      prisma.order.count({ where: { ...dateFilter, orderStatus: { in: ['CANCELLED','RETURNED'] } } }),
+    ]);
+
+    return res.json({ success: true, counts: { all, pending, processing, shipped, delivered, cancelled } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch tab counts', error: error.message });
+  }
+};
+
+export const getOrderByIdAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, avatar: true } },
+        address: true,
+        payment: true,
+        tracking: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true, name: true, sku: true,
+                images: { where: { isPrimary: true }, take: 1 }
+              }
+            },
+            productVariant: { select: { id: true, sku: true } }
+          }
+        }
+      }
+    });
+
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // Parse timeline from tracking.logs
+    let timeline = [];
+    if (order.tracking?.logs) {
+      try { timeline = JSON.parse(order.tracking.logs); } catch { timeline = []; }
+    }
+
+    return res.json({
+      success: true,
+      order: { ...order, timeline }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch order', error: error.message });
+  }
+};
+
+export const exportOrdersAdmin = async (req, res) => {
+  try {
+    const { search = '', status = 'all', payment = 'all', startDate, endDate } = req.query;
+
+    const where = {};
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate)   where.createdAt.lte = new Date(endDate);
+    }
+    if (status && status !== 'all') {
+      const statuses = TAB_STATUS_MAP[status.toLowerCase()];
+      if (statuses) where.orderStatus = { in: statuses };
+    }
+    if (payment && payment !== 'all') {
+      const isCod = payment.toLowerCase() === 'cod';
+      where.payment = {
+        paymentMethod: isCod
+          ? { contains: 'COD', mode: 'insensitive' }
+          : { not: { contains: 'COD', mode: 'insensitive' } }
+      };
+    }
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { email:     { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+        payment: true
+      }
+    });
+
+    let csv = 'Order Number,Customer,Email,Phone,Date,Subtotal,Shipping,Tax,Discount,Total,Payment Method,Payment Status,Order Status\n';
+    orders.forEach(o => {
+      const name   = `${o.user?.firstName || ''} ${o.user?.lastName || ''}`.trim().replace(/"/g, '""');
+      const email  = (o.user?.email  || 'N/A').replace(/"/g, '""');
+      const phone  = (o.user?.phone  || 'N/A').replace(/"/g, '""');
+      const date   = new Date(o.createdAt).toISOString().split('T')[0];
+      csv += `"${o.orderNumber}","${name}","${email}","${phone}","${date}",${o.subtotal.toFixed(2)},${o.shippingFee.toFixed(2)},${o.taxAmount.toFixed(2)},${o.discountAmount.toFixed(2)},${o.totalAmount.toFixed(2)},"${o.payment?.paymentMethod || 'N/A'}","${o.paymentStatus}","${o.orderStatus}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=tnt-orders-${Date.now()}.csv`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to export orders', error: error.message });
+  }
+};
+
+export const createOrderAdmin = async (req, res) => {
+  try {
+    const { customerId, addressId, items, paymentMethod = 'COD', couponCode } = req.body;
+
+    if (!customerId || !addressId || !items?.length) {
+      return res.status(400).json({ success: false, message: 'Customer, address, and at least one item are required' });
+    }
+
+    // Validate customer
+    const customer = await prisma.user.findUnique({ where: { id: customerId } });
+    if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
+
+    // Validate address belongs to customer
+    const address = await prisma.address.findFirst({ where: { id: addressId, userId: customerId } });
+    if (!address) return res.status(404).json({ success: false, message: 'Address not found for this customer' });
+
+    // Validate and price items from DB (backend is authoritative)
+    let subtotal = 0;
+    const orderItems = [];
+    for (const item of items) {
+      const variant = await prisma.productVariant.findUnique({
+        where: { id: item.variantId },
+        include: { product: true }
+      });
+      if (!variant) return res.status(404).json({ success: false, message: `Variant ${item.variantId} not found` });
+      if (variant.stock < item.quantity) return res.status(400).json({ success: false, message: `Insufficient stock for ${variant.product.name}` });
+
+      const salePrice = variant.salePrice || variant.price;
+      const lineTotal = salePrice * item.quantity;
+      subtotal += lineTotal;
+      orderItems.push({
+        productId: variant.productId,
+        productVariantId: variant.id,
+        productName: variant.product.name,
+        variantInfo: JSON.stringify({ size: variant.size, color: variant.color }),
+        price: salePrice,
+        quantity: item.quantity,
+        totalPrice: lineTotal
+      });
+    }
+
+    // Coupon discount
+    let discountAmount = 0;
+    let validCouponCode = null;
+    if (couponCode) {
+      const coupon = await prisma.coupon.findFirst({
+        where: { code: couponCode, isActive: true, validFrom: { lte: new Date() }, validTill: { gte: new Date() } }
+      });
+      if (coupon && subtotal >= coupon.minOrderAmount) {
+        if (coupon.couponType === 'PERCENTAGE') {
+          discountAmount = Math.min(subtotal * (coupon.discountValue / 100), coupon.maxDiscount || Infinity);
+        } else if (coupon.couponType === 'FLAT') {
+          discountAmount = Math.min(coupon.discountValue, subtotal);
+        } else if (coupon.couponType === 'FREE_SHIPPING') {
+          discountAmount = 0; // handled via shippingFee
+        }
+        discountAmount = parseFloat(discountAmount.toFixed(2));
+        validCouponCode = coupon.code;
+      }
+    }
+
+    // Shipping fee (free over ₹499)
+    const shippingFee = (subtotal - discountAmount) >= 499 ? 0 : 99;
+
+    // Tax (18% GST on taxable amount after discount)
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = parseFloat((taxableAmount * 0.18).toFixed(2));
+
+    const totalAmount = parseFloat((subtotal - discountAmount + shippingFee + taxAmount).toFixed(2));
+
+    // Generate order number
+    const orderCount = await prisma.order.count();
+    const orderNumber = `TNT-${String(orderCount + 1001).padStart(4, '0')}`;
+
+    // Create order with all related records
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        userId: customerId,
+        addressId,
+        subtotal,
+        discountAmount,
+        shippingFee,
+        taxAmount,
+        totalAmount,
+        orderStatus: 'CONFIRMED',
+        paymentStatus: paymentMethod.toUpperCase().includes('COD') ? 'PENDING' : 'SUCCESS',
+        couponCode: validCouponCode,
+        items: { create: orderItems },
+        payment: {
+          create: {
+            paymentMethod,
+            transactionId: `ADMIN-${Date.now()}`,
+            amount: totalAmount,
+            status: paymentMethod.toUpperCase().includes('COD') ? 'PENDING' : 'SUCCESS'
+          }
+        },
+        tracking: {
+          create: {
+            trackingNumber: `TNT-TRK-${Date.now()}`,
+            currentStatus: 'CONFIRMED',
+            logs: JSON.stringify([{ status: 'CONFIRMED', time: new Date().toLocaleString(), note: 'Order created by admin' }])
+          }
+        }
+      },
+      include: { items: true, payment: true, tracking: true }
+    });
+
+    // Decrement stock
+    for (const item of orderItems) {
+      await prisma.productVariant.update({
+        where: { id: item.productVariantId },
+        data: { stock: { decrement: item.quantity } }
+      });
+    }
+
+    return res.status(201).json({ success: true, message: 'Order created successfully', order });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create order', error: error.message });
   }
 };
 
 export const updateOrderStatusAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, note } = req.body;
+
+    // Validate status value
+    const validStatuses = Object.keys(VALID_TRANSITIONS);
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status: ${status}` });
+    }
+
+    // Fetch current order status
+    const currentOrder = await prisma.order.findUnique({ where: { id }, select: { orderStatus: true } });
+    if (!currentOrder) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // Validate transition
+    const allowedNext = VALID_TRANSITIONS[currentOrder.orderStatus] || [];
+    if (!allowedNext.includes(status) && currentOrder.orderStatus !== status) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot transition from ${currentOrder.orderStatus} to ${status}. Allowed: ${allowedNext.join(', ') || 'none'}`
+      });
+    }
+
+    const updateData = { orderStatus: status };
+    if (status === 'DELIVERED') {
+      updateData.paymentStatus = 'SUCCESS';
+    }
 
     const order = await prisma.order.update({
       where: { id },
-      data: { orderStatus: status },
+      data: updateData,
       include: { user: true }
     });
+
 
     const tracking = await prisma.orderTracking.findUnique({ where: { orderId: id } });
     let logs = [];
@@ -180,7 +1376,7 @@ export const updateOrderStatusAdmin = async (req, res) => {
         logs = [];
       }
     }
-    logs.push({ status, time: new Date().toLocaleString() });
+    logs.push({ status, time: new Date().toLocaleString(), ...(note ? { note } : {}) });
 
     await prisma.orderTracking.upsert({
       where: { orderId: id },
@@ -253,7 +1449,7 @@ export const updateOrderTrackingAdmin = async (req, res) => {
 export const updateCustomerAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phone, rewardPoints, roleId } = req.body;
+    const { firstName, lastName, email, phone, rewardPoints, roleId, isBlocked } = req.body;
     const customer = await prisma.user.update({
       where: { id },
       data: {
@@ -262,7 +1458,8 @@ export const updateCustomerAdmin = async (req, res) => {
         email,
         phone,
         rewardPoints: rewardPoints !== undefined ? parseInt(rewardPoints || '0') : undefined,
-        roleId: roleId || undefined
+        roleId: roleId || undefined,
+        isBlocked: isBlocked !== undefined ? Boolean(isBlocked) : undefined
       }
     });
     return res.json({ success: true, message: 'Customer profile updated successfully', customer });
@@ -445,20 +1642,102 @@ export const deleteCategoryAdmin = async (req, res) => {
 // Staff Management Controllers
 export const getStaffAdmin = async (req, res) => {
   try {
-    const staff = await prisma.user.findMany({
+    const { search, department, role, status, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Base where clause to select only staff members
+    const where = {
+      role: {
+        name: {
+          in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT']
+        }
+      },
+      deletedAt: null
+    };
+
+    // Apply search filter
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { department: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Apply department filter
+    if (department && department !== 'All Departments') {
+      where.department = { equals: department, mode: 'insensitive' };
+    }
+
+    // Apply role filter
+    if (role && role !== 'All Roles') {
+      where.role = {
+        name: { equals: role }
+      };
+    }
+
+    // Apply status filter
+    if (status && status !== 'All Status' && status !== 'all') {
+      where.isBlocked = status === 'inactive';
+    }
+
+    // Resolve sorting order
+    let orderBy = {};
+    if (sortBy === 'role') {
+      orderBy = { role: { name: sortOrder } };
+    } else {
+      orderBy = { [sortBy]: sortOrder };
+    }
+
+    const [staff, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: { role: true },
+        orderBy,
+        skip,
+        take: limitNum
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    // Fetch aggregated KPIs from database (all staff count)
+    const kpis = await prisma.user.aggregate({
       where: {
-        role: {
-          name: {
-            in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT']
-          }
-        },
+        role: { name: { in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT'] } },
         deletedAt: null
       },
-      include: {
-        role: true
+      _count: {
+        _all: true
       }
     });
-    return res.json({ success: true, staff });
+    
+    const totalStaff = kpis._count._all;
+    const activeStaff = await prisma.user.count({
+      where: {
+        role: { name: { in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT'] } },
+        deletedAt: null,
+        isBlocked: false
+      }
+    });
+    const inactiveStaff = totalStaff - activeStaff;
+
+    return res.json({ 
+      success: true, 
+      staff, 
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+      kpis: {
+        totalStaff,
+        activeStaff,
+        inactiveStaff
+      }
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch staff members', error: error.message });
   }
@@ -466,7 +1745,7 @@ export const getStaffAdmin = async (req, res) => {
 
 export const createStaffAdmin = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, roleId, password } = req.body;
+    const { firstName, lastName, email, phone, roleId, password, department, isBlocked } = req.body;
     if (!firstName || !email || !password || !roleId) {
       return res.status(400).json({ success: false, message: 'Missing required staff fields' });
     }
@@ -480,7 +1759,9 @@ export const createStaffAdmin = async (req, res) => {
         phone,
         passwordHash,
         isVerified: true,
-        roleId
+        roleId,
+        department: department || 'Operations',
+        isBlocked: isBlocked === true
       },
       include: { role: true }
     });
@@ -493,8 +1774,16 @@ export const createStaffAdmin = async (req, res) => {
 export const updateStaffAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phone, roleId, password } = req.body;
-    const data = { firstName, lastName, email, phone, roleId };
+    const { firstName, lastName, email, phone, roleId, password, department, isBlocked } = req.body;
+    const data = { 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      roleId,
+      department: department !== undefined ? department : undefined,
+      isBlocked: isBlocked !== undefined ? Boolean(isBlocked) : undefined
+    };
     if (password) {
       const { default: bcrypt } = await import('bcryptjs');
       data.passwordHash = await bcrypt.hash(password, 10);
@@ -718,7 +2007,10 @@ export const getAdminDashboardData = async (req, res) => {
     // 1. Fetch current and previous orders
     const currentOrders = await prisma.order.findMany({
       where: {
-        paymentStatus: 'SUCCESS',
+        OR: [
+          { paymentStatus: 'SUCCESS' },
+          { orderStatus: 'DELIVERED' }
+        ],
         createdAt: { gte: start, lte: end }
       },
       select: {
@@ -733,7 +2025,10 @@ export const getAdminDashboardData = async (req, res) => {
 
     const prevOrders = await prisma.order.findMany({
       where: {
-        paymentStatus: 'SUCCESS',
+        OR: [
+          { paymentStatus: 'SUCCESS' },
+          { orderStatus: 'DELIVERED' }
+        ],
         createdAt: { gte: prevStart, lte: prevEnd }
       },
       select: {
@@ -850,7 +2145,10 @@ export const getAdminDashboardData = async (req, res) => {
     const orderItems = await prisma.orderItem.findMany({
       where: {
         order: {
-          paymentStatus: 'SUCCESS',
+          OR: [
+            { paymentStatus: 'SUCCESS' },
+            { orderStatus: 'DELIVERED' }
+          ],
           orderStatus: { notIn: ['CANCELLED'] },
           createdAt: { gte: start, lte: end }
         }
@@ -1034,5 +2332,259 @@ export const restockInventory = async (req, res) => {
     return res.json({ success: true, message: 'Restocked successfully!', variant: result });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Restock failed', error: error.message });
+  }
+};
+
+export const getReportsAdmin = async (req, res) => {
+  try {
+    const { startDate, endDate, department } = req.query;
+
+    let start = startDate ? new Date(startDate) : new Date();
+    let end = endDate ? new Date(endDate) : new Date();
+
+    if (!startDate || !endDate) {
+      start.setDate(start.getDate() - 30);
+    }
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const durationMs = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - durationMs - 1);
+    const prevEnd = new Date(start.getTime() - 1);
+
+    // 1. Fetch current and previous orders
+    const whereCurrent = {
+      OR: [
+        { paymentStatus: 'SUCCESS' },
+        { orderStatus: 'DELIVERED' }
+      ],
+      createdAt: { gte: start, lte: end }
+    };
+    const wherePrev = {
+      OR: [
+        { paymentStatus: 'SUCCESS' },
+        { orderStatus: 'DELIVERED' }
+      ],
+      createdAt: { gte: prevStart, lte: prevEnd }
+    };
+
+    const [currentOrders, prevOrders] = await Promise.all([
+      prisma.order.findMany({
+        where: whereCurrent,
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  categories: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      prisma.order.findMany({
+        where: wherePrev,
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  categories: true
+                }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    // Apply department (Category-based) filtering on current/prev orders if requested
+    let filteredCurrentOrders = currentOrders;
+    let filteredPrevOrders = prevOrders;
+    if (department && department !== 'All Departments') {
+      filteredCurrentOrders = currentOrders.filter(o => 
+        o.items.some(item => item.product?.categories?.some(cat => cat.name.toLowerCase() === department.toLowerCase()))
+      );
+      filteredPrevOrders = prevOrders.filter(o => 
+        o.items.some(item => item.product?.categories?.some(cat => cat.name.toLowerCase() === department.toLowerCase()))
+      );
+    }
+
+    // Revenue
+    const revenue = filteredCurrentOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const prevRevenue = filteredPrevOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+    // Orders Count
+    const ordersCount = filteredCurrentOrders.length;
+    const prevOrdersCount = filteredPrevOrders.length;
+
+    // AOV
+    const aov = ordersCount > 0 ? revenue / ordersCount : 0;
+    const prevAov = prevOrdersCount > 0 ? prevRevenue / prevOrdersCount : 0;
+
+    // Discounts
+    const discounts = filteredCurrentOrders.reduce((sum, o) => sum + o.discountAmount, 0);
+    const prevDiscounts = filteredPrevOrders.reduce((sum, o) => sum + o.discountAmount, 0);
+
+    // Refunds (sum from Refund model during selected dates)
+    const [currentRefundsDb, prevRefundsDb] = await Promise.all([
+      prisma.refund.findMany({
+        where: {
+          createdAt: { gte: start, lte: end }
+        }
+      }),
+      prisma.refund.findMany({
+        where: {
+          createdAt: { gte: prevStart, lte: prevEnd }
+        }
+      })
+    ]);
+    const refunds = currentRefundsDb.reduce((sum, r) => sum + r.amount, 0);
+    const prevRefunds = prevRefundsDb.reduce((sum, r) => sum + r.amount, 0);
+
+    const getPercentChange = (curr, prev) => {
+      if (prev === 0) return curr > 0 ? 'New' : '0%';
+      const val = (((curr - prev) / prev) * 100).toFixed(1);
+      return `${val > 0 ? '+' : ''}${val}%`;
+    };
+
+    // Customer metrics
+    const [newCustomers, prevCustomers, allCustomersWithOrders] = await Promise.all([
+      prisma.user.count({
+        where: {
+          role: { name: 'CUSTOMER' },
+          createdAt: { gte: start, lte: end }
+        }
+      }),
+      prisma.user.count({
+        where: {
+          role: { name: 'CUSTOMER' },
+          createdAt: { gte: prevStart, lte: prevEnd }
+        }
+      }),
+      prisma.user.findMany({
+        where: {
+          role: { name: 'CUSTOMER' }
+        },
+        include: {
+          orders: {
+            where: {
+              OR: [
+                { paymentStatus: 'SUCCESS' },
+                { orderStatus: 'DELIVERED' }
+              ]
+            }
+          }
+        }
+      })
+    ]);
+
+    const returningCustomers = allCustomersWithOrders.filter(u => u.orders.length > 1).length;
+    const clv = allCustomersWithOrders.length > 0 
+      ? allCustomersWithOrders.reduce((sum, u) => sum + u.orders.reduce((oSum, o) => oSum + o.totalAmount, 0), 0) / allCustomersWithOrders.length
+      : 0;
+
+    // Inventory metrics
+    const allVariants = await prisma.productVariant.findMany({
+      include: {
+        product: true
+      }
+    });
+
+    const stockValue = allVariants.reduce((sum, v) => sum + (v.stock * v.price), 0);
+    const lowStock = allVariants.filter(v => v.stock > 0 && v.stock <= 10).length;
+    const outOfStock = allVariants.filter(v => v.stock === 0).length;
+
+    // Dead Stock calculation: variants with available stock > 0 but 0 units sold in the selected period
+    const allOrderedItems = filteredCurrentOrders.flatMap(o => o.items);
+    const orderedProductIds = new Set(allOrderedItems.map(item => item.productId));
+    const deadStock = allVariants.filter(v => v.stock > 0 && !orderedProductIds.has(v.productId)).length;
+
+    // Sales daily grouping
+    const dailyDataMap = {};
+    const dateCursor = new Date(start);
+    while (dateCursor <= end) {
+      const dateStr = dateCursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dailyDataMap[dateStr] = { label: dateStr, revenue: 0, orders: 0 };
+      dateCursor.setDate(dateCursor.getDate() + 1);
+    }
+
+    filteredCurrentOrders.forEach(o => {
+      const dateStr = o.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (dailyDataMap[dateStr]) {
+        dailyDataMap[dateStr].revenue += o.totalAmount;
+        dailyDataMap[dateStr].orders += 1;
+      }
+    });
+    const salesChartData = Object.values(dailyDataMap);
+
+    // Top products ranking
+    const productSalesMap = {};
+    allOrderedItems.forEach(item => {
+      if (!productSalesMap[item.productId]) {
+        productSalesMap[item.productId] = {
+          id: item.productId,
+          name: item.productName || item.product?.name,
+          image: item.product?.images?.[0]?.url || item.product?.coverImage || '/placeholder.png',
+          unitsSold: 0,
+          revenue: 0
+        };
+      }
+      productSalesMap[item.productId].unitsSold += item.quantity;
+      productSalesMap[item.productId].revenue += item.price * item.quantity;
+    });
+
+    const rankedProducts = Object.values(productSalesMap);
+    const bestSellersList = [...rankedProducts].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
+    const byRevenueList = [...rankedProducts].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+    const byQuantityList = [...rankedProducts].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
+
+    // Count of best/worst seller summary metrics
+    const bestSellersCount = rankedProducts.filter(p => p.unitsSold >= 10).length;
+    const worstSellersCount = allVariants.filter(v => v.stock > 0 && !orderedProductIds.has(v.productId)).length;
+
+    return res.json({
+      success: true,
+      kpi: {
+        revenue: { value: revenue, change: getPercentChange(revenue, prevRevenue) },
+        orders: { value: ordersCount, change: getPercentChange(ordersCount, prevOrdersCount) },
+        aov: { value: aov, change: getPercentChange(aov, prevAov) },
+        refunds: { value: refunds, change: getPercentChange(refunds, prevRefunds) },
+        discounts: { value: discounts, change: getPercentChange(discounts, prevDiscounts) }
+      },
+      salesReport: [
+        { name: 'Revenue', value: revenue, change: getPercentChange(revenue, prevRevenue) },
+        { name: 'Orders', value: ordersCount, change: getPercentChange(ordersCount, prevOrdersCount) },
+        { name: 'AOV', value: aov, change: getPercentChange(aov, prevAov) },
+        { name: 'Refunds', value: refunds, change: getPercentChange(refunds, prevRefunds) },
+        { name: 'Discounts', value: discounts, change: getPercentChange(discounts, prevDiscounts) }
+      ],
+      productReport: {
+        bestSellers: bestSellersCount,
+        worstSellers: worstSellersCount,
+        topProductsCount: rankedProducts.length
+      },
+      customerReport: {
+        newCustomers,
+        newCustomersChange: getPercentChange(newCustomers, prevCustomers),
+        returningCustomers,
+        clv: Math.round(clv)
+      },
+      inventoryReport: {
+        stockValue,
+        lowStock,
+        outOfStock,
+        deadStock
+      },
+      salesTrend: salesChartData,
+      topProducts: {
+        bestSellers: bestSellersList,
+        byRevenue: byRevenueList,
+        byQuantity: byQuantityList
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to generate analytics report', error: error.message });
   }
 };

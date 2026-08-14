@@ -23,6 +23,7 @@ import {
   X,
   LogOut,
   AlertOctagon,
+  BarChart2,
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/authSlice';
@@ -87,6 +88,8 @@ export default function AdminLayout() {
     { label: 'Reviews & Ratings', path: '/admin/reviews', icon: Star },
     { label: 'Coupons & Marketing', path: '/admin/coupons', icon: Tag },
     { label: 'Media Library', path: '/admin/media', icon: Image },
+    { label: 'Blogs & Editorials', path: '/admin/blogs', icon: FileText },
+    { label: 'Reports & Analytics', path: '/admin/reports', icon: BarChart2 },
     { label: 'Staff Management', path: '/admin/staff', icon: Users, superOnly: true },
     { label: 'Role & Permissions', path: '/admin/roles', icon: ShieldCheck, superOnly: true },
     { label: 'System Settings', path: '/admin/settings', icon: Settings, superOnly: true },

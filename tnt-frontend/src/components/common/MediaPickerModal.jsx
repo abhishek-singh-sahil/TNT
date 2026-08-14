@@ -190,7 +190,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect }) {
                     {selectedAsset.filename}
                   </div>
                   <div>
-                    <span className="text-muted block text-[9px] uppercase">Cloudinary ID</span>
+                    <span className="text-muted block text-[9px] uppercase">Public ID</span>
                     <span className="font-mono text-[9px]">{selectedAsset.publicId}</span>
                   </div>
                   {selectedAsset.width && (
