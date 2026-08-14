@@ -28,10 +28,8 @@ app.use(
       const isAllowed = 
         !origin || 
         allowedOrigins.includes(origin) ||
-        origin.endsWith('.threadntones.in') ||
-        origin.endsWith('.threadntones.shop') ||
-        origin === 'https://threadntones.in' ||
-        origin === 'https://threadntones.shop' ||
+        origin.endsWith('threadntones.in') ||
+        origin.endsWith('threadntones.shop') ||
         (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL);
 
       if (isAllowed) {
