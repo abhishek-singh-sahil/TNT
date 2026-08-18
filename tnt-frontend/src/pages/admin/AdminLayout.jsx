@@ -31,6 +31,7 @@ export default function AdminLayout() {
   const [darkMode, setDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
   });
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState(null);
 
   const {
     user,
@@ -38,6 +39,14 @@ export default function AdminLayout() {
     isStaff,
     hasPermission
   } = useRBAC();
+
+  useEffect(() => {
+    const handleAccessDenied = (e) => {
+      setAccessDeniedMessage(e.detail.message || 'You do not have permission to perform this action.');
+    };
+    window.addEventListener('tnt-access-denied', handleAccessDenied);
+    return () => window.removeEventListener('tnt-access-denied', handleAccessDenied);
+  }, []);
 
   useEffect(() => {
     if (darkMode) {
@@ -270,6 +279,27 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* ─── GLOBAL ACCESS DENIED POPUP OVERLAY ───────────────────────── */}
+      {accessDeniedMessage && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-paper border border-line rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-5 text-center animate-fade-in">
+            <AlertOctagon className="w-16 h-16 text-red-600 mx-auto animate-bounce" />
+            <div>
+              <h3 className="font-extrabold text-sm uppercase text-ink tracking-wider">Access Denied</h3>
+              <p className="text-xs text-muted leading-relaxed font-semibold mt-2">
+                {accessDeniedMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setAccessDeniedMessage(null)}
+              className="w-full py-3 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-ink/90 transition-all shadow-xs"
+            >
+              Understand & Dismiss
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -121,11 +121,74 @@ export default function AdminRoles() {
     }
 
     const currentPerms = matrix[roleId] || [];
-    const updated = currentPerms.includes(permissionName)
-      ? currentPerms.filter(p => p !== permissionName)
-      : [...currentPerms, permissionName];
+    let nextPerms = [...currentPerms];
+    const isAdding = !currentPerms.includes(permissionName);
 
-    setMatrix({ ...matrix, [roleId]: updated });
+    if (isAdding) {
+      nextPerms.push(permissionName);
+      
+      // Auto-check parent permission if adding an action permission
+      if (permissionName.startsWith('create_') || 
+          permissionName.startsWith('edit_') || 
+          permissionName.startsWith('delete_') || 
+          permissionName.startsWith('update_') || 
+          permissionName.startsWith('cancel_') || 
+          permissionName.startsWith('refund_') || 
+          permissionName.startsWith('approve_') || 
+          permissionName.startsWith('reject_') ||
+          permissionName === 'assign_roles' ||
+          permissionName === 'manage_permissions' ||
+          permissionName === 'export_reports') {
+        
+        let parent = null;
+        if (permissionName.endsWith('_products')) parent = 'view_products';
+        else if (permissionName.endsWith('_categories')) parent = 'view_categories';
+        else if (permissionName.endsWith('_orders')) parent = 'view_orders';
+        else if (permissionName.endsWith('_customers')) parent = 'view_customers';
+        else if (permissionName.endsWith('_inventory')) parent = 'view_inventory';
+        else if (permissionName.endsWith('_reviews')) parent = 'view_reviews';
+        else if (permissionName.endsWith('_coupons')) parent = 'view_coupons';
+        else if (permissionName.endsWith('_staff') || permissionName === 'assign_roles' || permissionName === 'manage_permissions') parent = 'view_staff';
+        else if (permissionName.endsWith('_roles')) parent = 'view_roles';
+        else if (permissionName.endsWith('_settings')) parent = 'view_settings';
+        else if (permissionName.endsWith('_reports') || permissionName === 'export_reports') parent = 'view_reports';
+        else if (permissionName.endsWith('_media')) parent = 'view_media';
+        else if (permissionName === 'edit_homepage') parent = 'view_dashboard';
+
+        if (parent && !nextPerms.includes(parent)) {
+          nextPerms.push(parent);
+        }
+      }
+    } else {
+      nextPerms = nextPerms.filter(p => p !== permissionName);
+      
+      // Auto-uncheck dependent permissions if unchecking a parent view permission
+      if (permissionName.startsWith('view_')) {
+        let childSuffix = null;
+        if (permissionName === 'view_products') childSuffix = '_products';
+        else if (permissionName === 'view_categories') childSuffix = '_categories';
+        else if (permissionName === 'view_orders') childSuffix = '_orders';
+        else if (permissionName === 'view_customers') childSuffix = '_customers';
+        else if (permissionName === 'view_inventory') childSuffix = '_inventory';
+        else if (permissionName === 'view_reviews') childSuffix = '_reviews';
+        else if (permissionName === 'view_coupons') childSuffix = '_coupons';
+        else if (permissionName === 'view_staff') {
+          nextPerms = nextPerms.filter(p => !p.endsWith('_staff') && p !== 'assign_roles' && p !== 'manage_permissions');
+        }
+        else if (permissionName === 'view_roles') childSuffix = '_roles';
+        else if (permissionName === 'view_settings') childSuffix = '_settings';
+        else if (permissionName === 'view_reports') {
+          nextPerms = nextPerms.filter(p => !p.endsWith('_reports') && p !== 'export_reports');
+        }
+        else if (permissionName === 'view_media') childSuffix = '_media';
+
+        if (childSuffix) {
+          nextPerms = nextPerms.filter(p => !p.endsWith(childSuffix));
+        }
+      }
+    }
+
+    setMatrix({ ...matrix, [roleId]: Array.from(new Set(nextPerms)) });
   };
 
   const handleSavePermissions = async () => {

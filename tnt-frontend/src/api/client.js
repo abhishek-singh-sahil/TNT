@@ -30,8 +30,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const status = error.response?.status;
     const message =
       error.response?.data?.message || 'Server communication error';
+
+    if (status === 403) {
+      window.dispatchEvent(new CustomEvent('tnt-access-denied', { detail: { message } }));
+    }
 
     return Promise.reject(new Error(message));
   }
