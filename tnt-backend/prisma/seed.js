@@ -1,6 +1,6 @@
 // Prisma Seed script for TNT E-Commerce - Seeding Dynamic CMS & Test Data
 
-import { PrismaClient, RoleName, OrderStatus, PaymentStatus } from '@prisma/client';
+import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -10,10 +10,11 @@ async function main() {
 
   // 1. System Roles
   const rolesList = [
-    { name: RoleName.ADMIN, desc: 'Super Administrator' },
-    { name: RoleName.CUSTOMER, desc: 'Standard Customer Account' },
-    { name: RoleName.MANAGER, desc: 'Store & Operations Manager' },
-    { name: RoleName.SUPPORT, desc: 'Customer Support Agent' },
+    { name: 'SUPER_ADMIN', desc: 'Super Administrator' },
+    { name: 'ADMIN', desc: 'Administrator' },
+    { name: 'CUSTOMER', desc: 'Standard Customer Account' },
+    { name: 'MANAGER', desc: 'Store & Operations Manager' },
+    { name: 'SUPPORT', desc: 'Customer Support Agent' },
   ];
 
   const roleMap = {};
@@ -38,7 +39,7 @@ async function main() {
       phone: '+91 99999 88888',
       passwordHash: adminPassword,
       isVerified: true,
-      roleId: roleMap[RoleName.ADMIN],
+      roleId: roleMap['SUPER_ADMIN'],
     },
   });
 
@@ -57,7 +58,7 @@ async function main() {
       isVerified: true,
       rewardPoints: 320,
       rewardTier: 'Silver Tier',
-      roleId: roleMap[RoleName.CUSTOMER],
+      roleId: roleMap['CUSTOMER'],
     },
   });
 
