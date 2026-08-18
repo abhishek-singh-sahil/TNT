@@ -55,6 +55,7 @@ export default function AdminRoles() {
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [selectedStaffUser, setSelectedStaffUser] = useState(null);
   const [targetRoleId, setTargetRoleId] = useState('');
+  const [isStaffEditMode, setIsStaffEditMode] = useState(false);
 
   // Permission Group modal
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -223,7 +224,7 @@ export default function AdminRoles() {
       updatedPermIds = updatedPermIds.filter(id => !groupPermIds.includes(id));
     } else {
       // Add permissions of this group
-      updatedPermIds = Array.from(new Set([...updatedPermIds, ...groupPerms]));
+      updatedPermIds = Array.from(new Set([...updatedPermIds, ...groupPermIds]));
     }
 
     setRoleForm({
@@ -308,9 +309,11 @@ export default function AdminRoles() {
     if (staffMember) {
       setSelectedStaffUser(staffMember);
       setTargetRoleId(staffMember.roleId);
+      setIsStaffEditMode(true);
     } else {
       setSelectedStaffUser(null);
       setTargetRoleId('');
+      setIsStaffEditMode(false);
     }
     setIsStaffModalOpen(true);
   };
@@ -1033,23 +1036,44 @@ export default function AdminRoles() {
       )}
 
       {/* ─── MODAL: Assign Staff ───────────────────────────────────────── */}
-      {isStaffModalOpen && selectedStaffUser && (
+      {isStaffModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-paper border border-line rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-line pb-3">
-              <h3 className="font-extrabold text-xs uppercase text-ink">Assign Staff Role</h3>
+              <h3 className="font-extrabold text-xs uppercase text-ink">
+                {isStaffEditMode ? 'Update Staff Role' : 'Assign Staff Role'}
+              </h3>
               <button onClick={() => setIsStaffModalOpen(false)}><X className="w-5 h-5 text-muted" /></button>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center gap-3 bg-stone/20 p-3 border border-line rounded-xl">
-                <div className="w-9 h-9 rounded-full bg-stone border border-line flex items-center justify-center text-xs font-black text-muted">
-                  {selectedStaffUser.firstName?.[0]}{selectedStaffUser.lastName?.[0]}
+              {isStaffEditMode && selectedStaffUser ? (
+                <div className="flex items-center gap-3 bg-stone/20 p-3 border border-line rounded-xl">
+                  <div className="w-9 h-9 rounded-full bg-stone border border-line flex items-center justify-center text-xs font-black text-muted">
+                    {selectedStaffUser.firstName?.[0] || 'S'}{selectedStaffUser.lastName?.[0] || ''}
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-ink block text-xs">{selectedStaffUser.firstName} {selectedStaffUser.lastName || ''}</span>
+                    <span className="text-[10px] text-muted">{selectedStaffUser.email}</span>
+                  </div>
                 </div>
+              ) : (
                 <div>
-                  <span className="font-extrabold text-ink block text-xs">{selectedStaffUser.firstName} {selectedStaffUser.lastName}</span>
-                  <span className="text-[10px] text-muted">{selectedStaffUser.email}</span>
+                  <label className="block text-[10px] font-bold uppercase text-muted mb-1.5">Select Staff Member *</label>
+                  <select
+                    value={selectedStaffUser?.id || ''}
+                    onChange={e => {
+                      const s = staff.find(x => x.id === e.target.value);
+                      setSelectedStaffUser(s);
+                    }}
+                    className="w-full border border-line rounded-lg px-3 py-2 text-xs text-ink bg-stone focus:outline-none"
+                  >
+                    <option value="">Choose a staff member...</option>
+                    {staff.map(s => (
+                      <option key={s.id} value={s.id}>{s.firstName} {s.lastName || ''} ({s.email})</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-muted mb-1.5">Select Role Assignment *</label>
