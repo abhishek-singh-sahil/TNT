@@ -68,7 +68,7 @@ export default function Register() {
       if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
         toast.success(`Registered & logged in as ${res.user.firstName}!`);
-        if (res.user.role?.name === 'ADMIN' || res.user.role?.name === 'SUPER_ADMIN') {
+        if (res.user.role?.name !== 'CUSTOMER') {
           navigate('/admin');
         } else {
           navigate('/account/dashboard');
@@ -122,7 +122,7 @@ export default function Register() {
       if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
         toast.success('Account verified and registered successfully! Welcome to TNT Club.');
-        if (res.user.role?.name === 'ADMIN' || res.user.role?.name === 'SUPER_ADMIN') {
+        if (res.user.role?.name !== 'CUSTOMER') {
           navigate('/admin');
         } else {
           navigate('/account/dashboard');

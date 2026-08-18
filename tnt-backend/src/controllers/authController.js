@@ -102,7 +102,13 @@ export const login = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true, addresses: true, wishlist: { include: { items: true } } },
+      include: { 
+        role: {
+          include: { permissions: true }
+        }, 
+        addresses: true, 
+        wishlist: { include: { items: true } } 
+      },
     });
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -157,7 +163,12 @@ export const verifyOTP = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true, addresses: true }
+      include: { 
+        role: {
+          include: { permissions: true }
+        }, 
+        addresses: true 
+      }
     });
 
     if (!user) {
@@ -255,7 +266,12 @@ export const googleLogin = async (req, res) => {
 
     let user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true, addresses: true }
+      include: { 
+        role: {
+          include: { permissions: true }
+        }, 
+        addresses: true 
+      }
     });
 
     if (!user) {
@@ -272,7 +288,12 @@ export const googleLogin = async (req, res) => {
           roleId: customerRole.id,
           rewardPoints: 320
         },
-        include: { role: true, addresses: true }
+        include: { 
+          role: {
+            include: { permissions: true }
+          }, 
+          addresses: true 
+        }
       });
     } else {
       // Update details
@@ -282,7 +303,12 @@ export const googleLogin = async (req, res) => {
           avatar: user.avatar || picture || '',
           isVerified: true
         },
-        include: { role: true, addresses: true }
+        include: { 
+          role: {
+            include: { permissions: true }
+          }, 
+          addresses: true 
+        }
       });
     }
 

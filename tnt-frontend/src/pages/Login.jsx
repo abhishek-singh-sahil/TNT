@@ -62,7 +62,7 @@ export default function Login() {
       if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
         toast.success(`Logged in as ${res.user.firstName}!`);
-        if (res.user.role?.name === 'ADMIN' || res.user.role?.name === 'SUPER_ADMIN') {
+        if (res.user.role?.name !== 'CUSTOMER') {
           navigate('/admin');
         } else {
           navigate('/account/dashboard');
@@ -87,7 +87,7 @@ export default function Login() {
       } else if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
         toast.success(`Welcome back, ${res.user.firstName}!`);
-        if (res.user.role?.name === 'ADMIN' || res.user.role?.name === 'SUPER_ADMIN') {
+        if (res.user.role?.name !== 'CUSTOMER') {
           navigate('/admin');
         } else {
           navigate('/account/dashboard');
@@ -113,7 +113,7 @@ export default function Login() {
       if (res.success) {
         dispatch(setCredentials({ user: res.user, accessToken: res.token }));
         toast.success('Account verified and logged in successfully!');
-        if (res.user.role?.name === 'ADMIN' || res.user.role?.name === 'SUPER_ADMIN') {
+        if (res.user.role?.name !== 'CUSTOMER') {
           navigate('/admin');
         } else {
           navigate('/account/dashboard');

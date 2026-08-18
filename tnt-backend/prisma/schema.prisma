@@ -9,21 +9,33 @@ datasource db {
 
 model Role {
   id          String       @id @default(uuid())
-  name        RoleName     @unique @default(CUSTOMER)
+  name        String       @unique @default("CUSTOMER")
   description String?
+  status      String       @default("ACTIVE")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   users       User[]
   permissions Permission[] @relation("PermissionToRole")
 }
 
-model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique
+model PermissionGroup {
+  id          String       @id @default(uuid())
+  name        String       @unique
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  roles       Role[]   @relation("PermissionToRole")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  permissions Permission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  groupId     String?
+  group       PermissionGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roles       Role[]           @relation("PermissionToRole")
 }
 
 model User {

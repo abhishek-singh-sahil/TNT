@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutGrid,
   ShoppingBag,
@@ -11,22 +11,18 @@ import {
   Star,
   Tag,
   FileText,
-  HelpCircle,
-  Mail,
   ShieldCheck,
   Settings,
   Bell,
-  Search,
-  Moon,
-  Sun,
-  Menu,
-  X,
   LogOut,
   AlertOctagon,
   BarChart2,
+  Menu,
+  X,
 } from 'lucide-react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { logout } from '../../store/authSlice';
+import { useRBAC } from '../../hooks/useRBAC';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -35,7 +31,13 @@ export default function AdminLayout() {
   const [darkMode, setDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
   });
-  const { user } = useSelector((state) => state.auth);
+
+  const {
+    user,
+    currentRole,
+    isStaff,
+    hasPermission
+  } = useRBAC();
 
   useEffect(() => {
     if (darkMode) {
@@ -49,14 +51,13 @@ export default function AdminLayout() {
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  const isAdminUser = user && (user.role?.name === 'ADMIN' || user.role?.name === 'SUPER_ADMIN');
-
-  if (!isAdminUser) {
+  // Deny access if not a staff member
+  if (!isStaff) {
     return (
       <div className="bg-paper min-h-screen flex items-center justify-center p-6 text-center">
         <div className="bg-stone border border-line rounded-xl p-8 max-w-sm w-full space-y-4">
-          <AlertOctagon className="w-12 h-12 text-red-600 mx-auto" />
-          <h2 className="text-base font-extrabold uppercase text-ink tracking-wider">Access Denied</h2>
+          <AlertOctagon className="w-12 h-12 text-red-600 mx-auto animate-bounce" />
+          <h2 className="text-base font-extrabold uppercase text-ink tracking-wider font-black">Access Denied</h2>
           <p className="text-xs text-muted leading-relaxed font-semibold">You do not have permissions to access the enterprise administration panel.</p>
           <div className="pt-2 space-y-2">
             <Link
@@ -64,13 +65,13 @@ export default function AdminLayout() {
               onClick={() => dispatch(logout())}
               className="w-full py-3 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded block hover:bg-ink/90 transition-colors"
             >
-              SIGN IN AS ADMIN
+              SIGN IN AS STAFF
             </Link>
             <Link
               to="/"
               className="w-full py-3 border border-line text-ink text-xs font-bold uppercase tracking-wider rounded block hover:bg-stone transition-colors"
             >
-              BACK TO HOME
+              BACK TO STOREFRONT
             </Link>
           </div>
         </div>
@@ -78,29 +79,58 @@ export default function AdminLayout() {
     );
   }
 
+  // Configuration for all staff modules, linked to database permissions
   const allNavItems = [
-    { label: 'Overview Dashboard', path: '/admin', icon: LayoutGrid },
-    { label: 'Homepage CMS', path: '/admin/cms', icon: Sliders },
-    { label: 'Product Catalog', path: '/admin/products', icon: Package },
-    { label: 'Categories & Collections', path: '/admin/categories', icon: FolderTree },
-    { label: 'Order Management', path: '/admin/orders', icon: ShoppingBag },
-    { label: 'Customer Management', path: '/admin/customers', icon: Users },
-    { label: 'Reviews & Ratings', path: '/admin/reviews', icon: Star },
-    { label: 'Coupons & Marketing', path: '/admin/coupons', icon: Tag },
-    { label: 'Media Library', path: '/admin/media', icon: Image },
-    { label: 'Blogs & Editorials', path: '/admin/blogs', icon: FileText },
-    { label: 'Reports & Analytics', path: '/admin/reports', icon: BarChart2 },
-    { label: 'Staff Management', path: '/admin/staff', icon: Users, superOnly: true },
-    { label: 'Role & Permissions', path: '/admin/roles', icon: ShieldCheck, superOnly: true },
-    { label: 'System Settings', path: '/admin/settings', icon: Settings, superOnly: true },
+    { label: 'Overview Dashboard', path: '/admin', icon: LayoutGrid, permission: 'view_dashboard' },
+    { label: 'Homepage CMS', path: '/admin/cms', icon: Sliders, permission: 'edit_homepage' },
+    { label: 'Product Catalog', path: '/admin/products', icon: Package, permission: 'view_products' },
+    { label: 'Categories & Collections', path: '/admin/categories', icon: FolderTree, permission: 'view_categories' },
+    { label: 'Order Management', path: '/admin/orders', icon: ShoppingBag, permission: 'view_orders' },
+    { label: 'Customer Management', path: '/admin/customers', icon: Users, permission: 'view_customers' },
+    { label: 'Reviews & Ratings', path: '/admin/reviews', icon: Star, permission: 'view_reviews' },
+    { label: 'Coupons & Marketing', path: '/admin/coupons', icon: Tag, permission: 'view_coupons' },
+    { label: 'Media Library', path: '/admin/media', icon: Image, permission: 'view_media' },
+    { label: 'Blogs & Editorials', path: '/admin/blogs', icon: FileText, permission: 'edit_homepage' },
+    { label: 'Reports & Analytics', path: '/admin/reports', icon: BarChart2, permission: 'view_reports' },
+    { label: 'Staff Management', path: '/admin/staff', icon: Users, permission: 'view_staff' },
+    { label: 'Role & Permissions', path: '/admin/roles', icon: ShieldCheck, permission: 'view_roles' },
+    { label: 'System Settings', path: '/admin/settings', icon: Settings, permission: 'view_settings' },
   ];
 
-  const navItems = allNavItems.filter(item => {
-    if (item.superOnly) {
-      return user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-    }
-    return true;
-  });
+  // Dynamically filter sidebar items based on permission
+  const navItems = allNavItems.filter(item => hasPermission(item.permission));
+
+  // Determine current active page object to enforce direct URL access security
+  const currentPath = location.pathname.endsWith('/') ? location.pathname.slice(0, -1) : location.pathname;
+  const currentNavItem = allNavItems.find(item => item.path === currentPath);
+
+  // If visiting an admin route manually that the user has no permissions to access
+  if (currentNavItem && !hasPermission(currentNavItem.permission)) {
+    return (
+      <div className="bg-stone min-h-screen flex items-center justify-center p-6 text-center">
+        <div className="bg-paper border border-line rounded-xl p-8 max-w-md w-full space-y-4 shadow-sm">
+          <AlertOctagon className="w-12 h-12 text-red-600 mx-auto" />
+          <h2 className="text-base font-extrabold uppercase text-ink tracking-wider font-black">403 — Unauthorized Access</h2>
+          <p className="text-xs text-muted leading-relaxed font-semibold">
+            You do not have the required permission <span className="font-mono bg-stone px-1 py-0.5 rounded">"{currentNavItem.permission}"</span> to view this module.
+          </p>
+          <div className="pt-2">
+            <Link
+              to="/admin"
+              className="w-full py-3 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded block hover:bg-ink/90 transition-colors shadow-xs"
+            >
+              GO TO PERMITTED WORKSPACE
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Format role name for display (e.g. SUPER_ADMIN -> Super Admin)
+  const roleDisplayName = currentRole?.name
+    ? currentRole.name.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
+    : 'Staff User';
 
   return (
     <div className="min-h-screen flex bg-stone text-ink">
@@ -135,40 +165,46 @@ export default function AdminLayout() {
           {/* Navigation Items */}
           <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-140px)] no-scrollbar">
             <div className="text-[10px] font-bold text-muted uppercase tracking-wider px-3 mb-2">CMS & OPERATIONS</div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+            {navItems.length > 0 ? (
+              navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
 
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-ink text-paper shadow-sm'
-                      : 'text-ink hover:bg-stone'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-paper' : 'text-muted'}`} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all ${
+                      isActive
+                        ? 'bg-ink text-paper shadow-sm'
+                        : 'text-ink hover:bg-stone'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-paper' : 'text-muted'}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="px-3 py-4 text-xs text-muted font-semibold leading-relaxed">
+                No modules authorized. Contact your system admin to assign permissions.
+              </div>
+            )}
           </nav>
         </div>
 
         {/* Footer Admin User Card */}
         <div className="p-4 border-t border-line bg-stone/50 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-ink text-paper font-extrabold text-xs flex items-center justify-center">
-              {user?.firstName?.substring(0, 2).toUpperCase() || 'AD'}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-ink text-paper font-extrabold text-xs flex items-center justify-center flex-shrink-0">
+              {user?.firstName?.substring(0, 2).toUpperCase() || 'ST'}
             </div>
-            <div>
-              <div className="text-xs font-bold text-ink">{user?.firstName} {user?.lastName || ''}</div>
-              <div className="text-[10px] text-muted">{user?.email}</div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-ink truncate">{user?.firstName} {user?.lastName || ''}</div>
+              <div className="text-[9px] text-muted truncate font-mono">{roleDisplayName}</div>
             </div>
           </div>
-          <button onClick={() => dispatch(logout())} className="p-1 text-muted hover:text-red-600">
+          <button onClick={() => dispatch(logout())} className="p-1.5 text-muted hover:text-red-600 flex-shrink-0">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -202,9 +238,11 @@ export default function AdminLayout() {
             </button>
 
             {/* Settings Gear Shortcut */}
-            <Link to="/admin/settings" className="p-2 border border-line rounded-lg text-ink hover:bg-stone transition-colors">
-              <Settings className="w-4 h-4" />
-            </Link>
+            {hasPermission('view_settings') && (
+              <Link to="/admin/settings" className="p-2 border border-line rounded-lg text-ink hover:bg-stone transition-colors">
+                <Settings className="w-4 h-4" />
+              </Link>
+            )}
 
             {/* Admin Profile User Card */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-line">
@@ -212,7 +250,7 @@ export default function AdminLayout() {
                 {user?.avatar ? (
                   <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span>{user?.firstName?.substring(0, 2).toUpperCase() || 'AD'}</span>
+                  <span>{user?.firstName?.substring(0, 2).toUpperCase() || 'ST'}</span>
                 )}
               </div>
               <div className="text-left hidden md:block">
@@ -220,7 +258,7 @@ export default function AdminLayout() {
                   {user?.firstName} {user?.lastName || ''}
                 </div>
                 <div className="text-[9px] font-extrabold text-muted uppercase tracking-wider">
-                  {user?.role?.name === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin User'}
+                  {roleDisplayName}
                 </div>
               </div>
             </div>

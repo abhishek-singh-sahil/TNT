@@ -3,49 +3,61 @@ import { sendEmail } from '../utils/email.js';
 
 export const getAdminDashboardMetrics = async (req, res) => {
   try {
-    const [totalOrders, deliveredOrders, pendingOrders, totalUsers, totalProducts] = await Promise.all([
-      prisma.order.count(),
-      prisma.order.count({ where: { orderStatus: 'DELIVERED' } }),
-      prisma.order.count({ where: { orderStatus: 'CONFIRMED' } }),
-      prisma.user.count({ where: { role: { name: 'CUSTOMER' } } }),
-      prisma.product.count({ where: { deletedAt: null } }),
-    ]);
+    const isSuper = req.user?.role?.name === 'SUPER_ADMIN';
+    const permissions = req.user?.role?.permissions || [];
+    const hasPerm = (pname) => isSuper || permissions.some(p => p.name === pname);
 
-    const revenueResult = await prisma.order.aggregate({
-      where: {
-        OR: [
-          { paymentStatus: 'SUCCESS' },
-          { orderStatus: 'DELIVERED' }
-        ]
-      },
-      _sum: { totalAmount: true },
-    });
+    const hasReports = hasPerm('view_reports');
+    const hasOrders = hasPerm('view_orders');
+    const hasCustomers = hasPerm('view_customers');
+    const hasProducts = hasPerm('view_products');
 
-    const totalRevenue = revenueResult._sum.totalAmount || 0;
+    const totalOrders = hasOrders ? await prisma.order.count() : 0;
+    const deliveredOrders = hasOrders ? await prisma.order.count({ where: { orderStatus: 'DELIVERED' } }) : 0;
+    const pendingOrders = hasOrders ? await prisma.order.count({ where: { orderStatus: 'CONFIRMED' } }) : 0;
+    const totalUsers = hasCustomers ? await prisma.user.count({ where: { role: { name: 'CUSTOMER' } } }) : 0;
+    const totalProducts = hasProducts ? await prisma.product.count({ where: { deletedAt: null } }) : 0;
+
+    let totalRevenue = 0;
+    if (hasReports) {
+      const revenueResult = await prisma.order.aggregate({
+        where: {
+          OR: [
+            { paymentStatus: 'SUCCESS' },
+            { orderStatus: 'DELIVERED' }
+          ]
+        },
+        _sum: { totalAmount: true },
+      });
+      totalRevenue = revenueResult._sum.totalAmount || 0;
+    }
 
     // Fetch low stock items from database
-    const lowStockVariants = await prisma.productVariant.findMany({
-      where: { stock: { lte: 5 } },
-      include: { product: true },
-      take: 5,
-    });
+    let lowStockVariants = [];
+    if (hasProducts) {
+      lowStockVariants = await prisma.productVariant.findMany({
+        where: { stock: { lte: 5 } },
+        include: { product: true },
+        take: 5,
+      });
+    }
 
     return res.json({
       success: true,
       metrics: {
-        totalSales: `₹${totalRevenue.toLocaleString()}`,
+        totalSales: hasReports ? `₹${totalRevenue.toLocaleString()}` : '₹0',
         todaySales: '₹0',
         weeklySales: '₹0',
-        monthlySales: `₹${totalRevenue.toLocaleString()}`,
+        monthlySales: hasReports ? `₹${totalRevenue.toLocaleString()}` : '₹0',
         totalOrders,
         deliveredOrders,
         pendingOrders,
         totalCustomers: totalUsers,
         activeProducts: totalProducts,
-        conversionRate: totalOrders > 0 ? '3.4%' : '0.0%',
+        conversionRate: hasReports && totalOrders > 0 ? '3.4%' : '0.0%',
         cartAbandonmentRate: '0.0%',
       },
-      salesGraphData: totalOrders > 0 ? [
+      salesGraphData: hasReports && totalOrders > 0 ? [
         { month: 'Current', revenue: totalRevenue, orders: totalOrders }
       ] : [],
       salesByCity: [],
@@ -1959,23 +1971,135 @@ export const deleteStaffAdmin = async (req, res) => {
 };
 
 // Roles & Permissions Controllers
+// Roles & Permissions Controllers
 const ensureDefaultPermissions = async () => {
+  const defaultGroups = [
+    { name: 'Dashboard', description: 'Access to system analytics, metrics and business charts' },
+    { name: 'Product Management', description: 'Manage products, collections, categories, sizes and colors' },
+    { name: 'Order Management', description: 'Track customer orders, process shipping status and issue returns' },
+    { name: 'Customer Management', description: 'View customers profiles, reward point balances and details' },
+    { name: 'Inventory Management', description: 'Monitor stocks, warehouses and restock item alerts' },
+    { name: 'Content Management', description: 'Manage homepage banners, trust features, CMS blogs and reviews' },
+    { name: 'Marketing & Promotions', description: 'Manage campaigns, newsletters and promo coupons' },
+    { name: 'System Management', description: 'Configure settings, access audit logs and manage administrative staff' }
+  ];
+
+  const groupMap = {};
+  for (const g of defaultGroups) {
+    const groupRecord = await prisma.permissionGroup.upsert({
+      where: { name: g.name },
+      update: { description: g.description },
+      create: { name: g.name, description: g.description }
+    });
+    groupMap[g.name] = groupRecord.id;
+  }
+
   const defaultPermissions = [
-    { name: 'view_products', description: 'Can View Products' },
-    { name: 'edit_products', description: 'Can Edit / Create Products' },
-    { name: 'delete_products', description: 'Can Delete Products' },
-    { name: 'manage_orders', description: 'Can Manage Orders & Shipping' },
-    { name: 'access_analytics', description: 'Can Access Financial Analytics' },
-    { name: 'edit_homepage', description: 'Can Edit Homepage CMS' },
-    { name: 'manage_users', description: 'Can Manage Users & Staff' },
-    { name: 'manage_coupons', description: 'Can Create & Manage Coupons' },
+    // Dashboard
+    { name: 'view_dashboard', description: 'Can View Dashboard', group: 'Dashboard' },
+    
+    // Product Management
+    { name: 'view_products', description: 'Can View Products', group: 'Product Management' },
+    { name: 'create_products', description: 'Can Create Products', group: 'Product Management' },
+    { name: 'edit_products', description: 'Can Edit Products', group: 'Product Management' },
+    { name: 'delete_products', description: 'Can Delete Products', group: 'Product Management' },
+    { name: 'view_categories', description: 'Can View Categories', group: 'Product Management' },
+    { name: 'create_categories', description: 'Can Create Categories', group: 'Product Management' },
+    { name: 'edit_categories', description: 'Can Edit Categories', group: 'Product Management' },
+    { name: 'delete_categories', description: 'Can Delete Categories', group: 'Product Management' },
+
+    // Order Management
+    { name: 'view_orders', description: 'Can View Orders', group: 'Order Management' },
+    { name: 'update_orders', description: 'Can Update Orders', group: 'Order Management' },
+    { name: 'cancel_orders', description: 'Can Cancel Orders', group: 'Order Management' },
+    { name: 'refund_orders', description: 'Can Refund Orders', group: 'Order Management' },
+
+    // Customer Management
+    { name: 'view_customers', description: 'Can View Customers', group: 'Customer Management' },
+    { name: 'edit_customers', description: 'Can Edit Customers', group: 'Customer Management' },
+    { name: 'delete_customers', description: 'Can Delete Customers', group: 'Customer Management' },
+
+    // Inventory Management
+    { name: 'view_inventory', description: 'Can View Inventory', group: 'Inventory Management' },
+    { name: 'edit_inventory', description: 'Can Edit Inventory', group: 'Inventory Management' },
+
+    // Content Management
+    { name: 'view_reviews', description: 'Can View Reviews', group: 'Content Management' },
+    { name: 'approve_reviews', description: 'Can Approve Reviews', group: 'Content Management' },
+    { name: 'reject_reviews', description: 'Can Reject Reviews', group: 'Content Management' },
+    { name: 'delete_reviews', description: 'Can Delete Reviews', group: 'Content Management' },
+    { name: 'edit_homepage', description: 'Can Edit Homepage CMS', group: 'Content Management' },
+
+    // Marketing & Promotions
+    { name: 'view_coupons', description: 'Can View Coupons', group: 'Marketing & Promotions' },
+    { name: 'create_coupons', description: 'Can Create Coupons', group: 'Marketing & Promotions' },
+    { name: 'edit_coupons', description: 'Can Edit Coupons', group: 'Marketing & Promotions' },
+    { name: 'delete_coupons', description: 'Can Delete Coupons', group: 'Marketing & Promotions' },
+
+    // System Management
+    { name: 'view_staff', description: 'Can View Staff', group: 'System Management' },
+    { name: 'create_staff', description: 'Can Create Staff', group: 'System Management' },
+    { name: 'edit_staff', description: 'Can Edit Staff', group: 'System Management' },
+    { name: 'delete_staff', description: 'Can Delete Staff', group: 'System Management' },
+    { name: 'view_roles', description: 'Can View Roles', group: 'System Management' },
+    { name: 'create_roles', description: 'Can Create Roles', group: 'System Management' },
+    { name: 'edit_roles', description: 'Can Edit Roles', group: 'System Management' },
+    { name: 'delete_roles', description: 'Can Delete Roles', group: 'System Management' },
+    { name: 'manage_permissions', description: 'Can Manage Permissions', group: 'System Management' },
+    { name: 'assign_roles', description: 'Can Assign Roles', group: 'System Management' },
+    { name: 'view_settings', description: 'Can View Settings', group: 'System Management' },
+    { name: 'edit_settings', description: 'Can Edit Settings', group: 'System Management' },
+    { name: 'view_reports', description: 'Can View Reports', group: 'System Management' },
+    { name: 'export_reports', description: 'Can Export Reports', group: 'System Management' },
+    { name: 'view_audit_logs', description: 'Can View Audit Logs', group: 'System Management' },
+    { name: 'view_media', description: 'Can View Media', group: 'System Management' },
+    { name: 'upload_media', description: 'Can Upload Media', group: 'System Management' },
+    { name: 'edit_media', description: 'Can Edit Media', group: 'System Management' },
+    { name: 'delete_media', description: 'Can Delete Media', group: 'System Management' }
   ];
 
   for (const perm of defaultPermissions) {
+    const groupId = groupMap[perm.group] || null;
     await prisma.permission.upsert({
       where: { name: perm.name },
-      update: { description: perm.description },
-      create: { name: perm.name, description: perm.description }
+      update: { description: perm.description, groupId },
+      create: { name: perm.name, description: perm.description, groupId }
+    });
+  }
+
+  // Ensure default roles exist as text values
+  const defaultRoles = [
+    { name: 'SUPER_ADMIN', description: 'Super Administrator with absolute control over staff and settings' },
+    { name: 'ADMIN', description: 'Manage all modules and settings except role management' },
+    { name: 'MANAGER', description: 'Manage store operations, orders, customers and content' },
+    { name: 'SUPPORT', description: 'Handle customer queries, orders and reviews' },
+    { name: 'CUSTOMER', description: 'Standard Customer Account' }
+  ];
+
+  for (const dr of defaultRoles) {
+    const roleExist = await prisma.role.findUnique({ where: { name: dr.name } });
+    if (!roleExist) {
+      await prisma.role.create({
+        data: { name: dr.name, description: dr.description, status: 'ACTIVE' }
+      });
+    }
+  }
+
+  // Auto connect all permissions to SUPER_ADMIN role for security
+  const superAdminRole = await prisma.role.findUnique({
+    where: { name: 'SUPER_ADMIN' },
+    include: { permissions: true }
+  });
+  if (superAdminRole) {
+    const allPerms = await prisma.permission.findMany();
+    await prisma.role.update({
+      where: { id: superAdminRole.id },
+      data: {
+        permissions: {
+          set: [],
+          connect: allPerms.map(p => ({ id: p.id }))
+        }
+      }
     });
   }
 };
@@ -1984,7 +2108,15 @@ export const getRolesAdmin = async (req, res) => {
   try {
     await ensureDefaultPermissions();
     const roles = await prisma.role.findMany({
-      include: { permissions: true }
+      include: {
+        permissions: {
+          include: { group: true }
+        },
+        _count: {
+          select: { users: true }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
     });
     return res.json({ success: true, roles });
   } catch (error) {
@@ -1992,10 +2124,154 @@ export const getRolesAdmin = async (req, res) => {
   }
 };
 
+export const createRoleAdmin = async (req, res) => {
+  try {
+    const { name, description, status, groupIds = [], permissionIds = [] } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Role name is required' });
+    }
+    const cleanName = name.trim().toUpperCase().replace(/\s+/g, '_');
+
+    // Check duplicate
+    const existing = await prisma.role.findUnique({ where: { name: cleanName } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Role name "${name}" already exists` });
+    }
+
+    // Determine target permissions
+    let finalPermIds = [...permissionIds];
+    if (groupIds.length > 0) {
+      const groupPerms = await prisma.permission.findMany({
+        where: { groupId: { in: groupIds } },
+        select: { id: true }
+      });
+      finalPermIds = Array.from(new Set([...finalPermIds, ...groupPerms.map(p => p.id)]));
+    }
+
+    const role = await prisma.role.create({
+      data: {
+        name: cleanName,
+        description,
+        status: status || 'ACTIVE',
+        permissions: {
+          connect: finalPermIds.map(pid => ({ id: pid }))
+        }
+      },
+      include: { permissions: true }
+    });
+
+    return res.status(201).json({ success: true, message: 'Role created successfully', role });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create role', error: error.message });
+  }
+};
+
+export const updateRoleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, status, groupIds, permissionIds } = req.body;
+
+    const role = await prisma.role.findUnique({ where: { id } });
+    if (!role) {
+      return res.status(404).json({ success: false, message: 'Role not found' });
+    }
+
+    if (role.name === 'SUPER_ADMIN') {
+      if (status && status !== 'ACTIVE') {
+        return res.status(400).json({ success: false, message: 'SUPER_ADMIN role cannot be deactivated' });
+      }
+    }
+
+    let updateData = {
+      description,
+      status: status || undefined
+    };
+
+    if (name && role.name !== 'SUPER_ADMIN') {
+      const cleanName = name.trim().toUpperCase().replace(/\s+/g, '_');
+      if (cleanName !== role.name) {
+        const dup = await prisma.role.findUnique({ where: { name: cleanName } });
+        if (dup) {
+          return res.status(400).json({ success: false, message: `Role name "${name}" already exists` });
+        }
+        updateData.name = cleanName;
+      }
+    }
+
+    if (groupIds !== undefined || permissionIds !== undefined) {
+      if (role.name === 'SUPER_ADMIN') {
+        // Absolute protect
+        const allPerms = await prisma.permission.findMany();
+        updateData.permissions = {
+          set: [],
+          connect: allPerms.map(p => ({ id: p.id }))
+        };
+      } else {
+        let finalPermIds = permissionIds || [];
+        if (groupIds && groupIds.length > 0) {
+          const groupPerms = await prisma.permission.findMany({
+            where: { groupId: { in: groupIds } },
+            select: { id: true }
+          });
+          finalPermIds = Array.from(new Set([...finalPermIds, ...groupPerms.map(p => p.id)]));
+        }
+        updateData.permissions = {
+          set: [],
+          connect: finalPermIds.map(pid => ({ id: pid }))
+        };
+      }
+    }
+
+    const updatedRole = await prisma.role.update({
+      where: { id },
+      data: updateData,
+      include: { permissions: true }
+    });
+
+    return res.json({ success: true, message: 'Role updated successfully', role: updatedRole });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update role', error: error.message });
+  }
+};
+
+export const deleteRoleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const role = await prisma.role.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { users: true } }
+      }
+    });
+
+    if (!role) {
+      return res.status(404).json({ success: false, message: 'Role not found' });
+    }
+
+    if (role.name === 'SUPER_ADMIN') {
+      return res.status(400).json({ success: false, message: 'SUPER_ADMIN role cannot be deleted' });
+    }
+
+    if (role._count.users > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete role "${role.name}" because it is currently assigned to ${role._count.users} staff members.`
+      });
+    }
+
+    await prisma.role.delete({ where: { id } });
+    return res.json({ success: true, message: 'Role deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete role', error: error.message });
+  }
+};
+
 export const getPermissionsAdmin = async (req, res) => {
   try {
     await ensureDefaultPermissions();
-    const permissions = await prisma.permission.findMany();
+    const permissions = await prisma.permission.findMany({
+      include: { group: true }
+    });
     return res.json({ success: true, permissions });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch permissions', error: error.message });
@@ -2007,11 +2283,20 @@ export const updateRolePermissionsAdmin = async (req, res) => {
     const { id } = req.params;
     const { permissionKeys } = req.body;
 
+    const role = await prisma.role.findUnique({ where: { id } });
+    if (!role) {
+      return res.status(404).json({ success: false, message: 'Role not found' });
+    }
+
+    if (role.name === 'SUPER_ADMIN') {
+      return res.status(400).json({ success: false, message: 'SUPER_ADMIN permissions are absolute and cannot be modified' });
+    }
+
     const perms = await prisma.permission.findMany({
       where: { name: { in: permissionKeys } }
     });
 
-    const role = await prisma.role.update({
+    const updatedRole = await prisma.role.update({
       where: { id },
       data: {
         permissions: {
@@ -2021,9 +2306,160 @@ export const updateRolePermissionsAdmin = async (req, res) => {
       },
       include: { permissions: true }
     });
-    return res.json({ success: true, message: 'Role permissions updated successfully', role });
+    return res.json({ success: true, message: 'Role permissions updated successfully', role: updatedRole });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to update role permissions', error: error.message });
+  }
+};
+
+// Permission Groups Controllers
+export const getPermissionGroupsAdmin = async (req, res) => {
+  try {
+    const groups = await prisma.permissionGroup.findMany({
+      include: {
+        permissions: true
+      },
+      orderBy: { name: 'asc' }
+    });
+    return res.json({ success: true, groups });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch permission groups', error: error.message });
+  }
+};
+
+export const createPermissionGroupAdmin = async (req, res) => {
+  try {
+    const { name, description, permissionIds = [] } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Group name is required' });
+    }
+
+    const existing = await prisma.permissionGroup.findUnique({ where: { name } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Group name "${name}" already exists` });
+    }
+
+    const group = await prisma.permissionGroup.create({
+      data: {
+        name,
+        description,
+        permissions: {
+          connect: permissionIds.map(pid => ({ id: pid }))
+        }
+      },
+      include: { permissions: true }
+    });
+
+    return res.status(201).json({ success: true, message: 'Permission group created successfully', group });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create permission group', error: error.message });
+  }
+};
+
+export const updatePermissionGroupAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, permissionIds } = req.body;
+
+    const group = await prisma.permissionGroup.findUnique({ where: { id } });
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Permission group not found' });
+    }
+
+    let updateData = { name, description };
+    if (permissionIds !== undefined) {
+      // First disconnect all permissions in this group
+      await prisma.permission.updateMany({
+        where: { groupId: id },
+        data: { groupId: null }
+      });
+      // Link new ones
+      if (permissionIds.length > 0) {
+        updateData.permissions = {
+          connect: permissionIds.map(pid => ({ id: pid }))
+        };
+      }
+    }
+
+    const updatedGroup = await prisma.permissionGroup.update({
+      where: { id },
+      data: updateData,
+      include: { permissions: true }
+    });
+
+    return res.json({ success: true, message: 'Permission group updated successfully', group: updatedGroup });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update permission group', error: error.message });
+  }
+};
+
+export const deletePermissionGroupAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Disconnect permissions
+    await prisma.permission.updateMany({
+      where: { groupId: id },
+      data: { groupId: null }
+    });
+
+    await prisma.permissionGroup.delete({ where: { id } });
+    return res.json({ success: true, message: 'Permission group deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete permission group', error: error.message });
+  }
+};
+
+// Staff Role Assignment Controller
+export const updateStaffRoleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roleId } = req.body;
+
+    if (!roleId) {
+      return res.status(400).json({ success: false, message: 'Role ID is required' });
+    }
+
+    const staffUser = await prisma.user.findUnique({
+      where: { id },
+      include: { role: true }
+    });
+
+    if (!staffUser) {
+      return res.status(404).json({ success: false, message: 'Staff member not found' });
+    }
+
+    // Safety check: Cannot alter Super Admin user role easily
+    if (staffUser.role.name === 'SUPER_ADMIN' && req.user.id !== staffUser.id) {
+      return res.status(400).json({ success: false, message: 'You cannot change the role of another SUPER_ADMIN' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { roleId },
+      include: { role: true }
+    });
+
+    return res.json({ success: true, message: 'Staff member role updated successfully', user: updatedUser });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update staff role', error: error.message });
+  }
+};
+
+// Import Permissions Controller
+export const importPermissionsAdmin = async (req, res) => {
+  try {
+    await ensureDefaultPermissions();
+    const permissions = await prisma.permission.findMany({
+      include: { group: true }
+    });
+    return res.json({
+      success: true,
+      message: 'Permissions synchronized successfully.',
+      count: permissions.length
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to sync permissions', error: error.message });
   }
 };
 export const getSettingsAdmin = async (req, res) => {
@@ -2135,6 +2571,16 @@ export const getSettingsPublic = async (req, res) => {
 
 export const getAdminDashboardData = async (req, res) => {
   try {
+    const isSuper = req.user?.role?.name === 'SUPER_ADMIN';
+    const permissions = req.user?.role?.permissions || [];
+    const hasPerm = (pname) => isSuper || permissions.some(p => p.name === pname);
+
+    const hasReports = hasPerm('view_reports');
+    const hasOrders = hasPerm('view_orders');
+    const hasCustomers = hasPerm('view_customers');
+    const hasProducts = hasPerm('view_products');
+    const hasReviews = hasPerm('view_reviews');
+
     const { startDate, endDate } = req.query;
 
     let start = startDate ? new Date(startDate) : new Date();
@@ -2150,77 +2596,89 @@ export const getAdminDashboardData = async (req, res) => {
     const prevStart = new Date(start.getTime() - durationMs - 1);
     const prevEnd = new Date(start.getTime() - 1);
 
-    // 1. Fetch current and previous orders
-    const currentOrders = await prisma.order.findMany({
-      where: {
-        OR: [
-          { paymentStatus: 'SUCCESS' },
-          { orderStatus: 'DELIVERED' }
-        ],
-        createdAt: { gte: start, lte: end }
-      },
-      select: {
-        totalAmount: true,
-        createdAt: true,
-        orderNumber: true,
-        id: true,
-        user: { select: { firstName: true, lastName: true, email: true } },
-        orderStatus: true
-      }
-    });
+    // 1. Fetch orders
+    let currentOrders = [];
+    let prevOrders = [];
+    if (hasOrders || hasReports) {
+      currentOrders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { paymentStatus: 'SUCCESS' },
+            { orderStatus: 'DELIVERED' }
+          ],
+          createdAt: { gte: start, lte: end }
+        },
+        select: {
+          totalAmount: true,
+          createdAt: true,
+          orderNumber: true,
+          id: true,
+          user: { select: { firstName: true, lastName: true, email: true } },
+          orderStatus: true
+        }
+      });
 
-    const prevOrders = await prisma.order.findMany({
-      where: {
-        OR: [
-          { paymentStatus: 'SUCCESS' },
-          { orderStatus: 'DELIVERED' }
-        ],
-        createdAt: { gte: prevStart, lte: prevEnd }
-      },
-      select: {
-        totalAmount: true
-      }
-    });
+      prevOrders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { paymentStatus: 'SUCCESS' },
+            { orderStatus: 'DELIVERED' }
+          ],
+          createdAt: { gte: prevStart, lte: prevEnd }
+        },
+        select: {
+          totalAmount: true
+        }
+      });
+    }
 
-    const currentRevenue = currentOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const prevRevenue = prevOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const currentRevenue = hasReports ? currentOrders.reduce((sum, o) => sum + o.totalAmount, 0) : 0;
+    const prevRevenue = hasReports ? prevOrders.reduce((sum, o) => sum + o.totalAmount, 0) : 0;
 
-    const currentOrdersCount = currentOrders.length;
-    const prevOrdersCount = prevOrders.length;
+    const currentOrdersCount = hasOrders ? currentOrders.length : 0;
+    const prevOrdersCount = hasOrders ? prevOrders.length : 0;
 
     // 2. Fetch Customers
-    const currentCustomers = await prisma.user.count({
-      where: {
-        role: { name: 'CUSTOMER' },
-        createdAt: { gte: start, lte: end }
-      }
-    });
+    let currentCustomers = 0;
+    let prevCustomers = 0;
+    let totalCustomersCount = 0;
+    if (hasCustomers) {
+      currentCustomers = await prisma.user.count({
+        where: {
+          role: { name: 'CUSTOMER' },
+          createdAt: { gte: start, lte: end }
+        }
+      });
 
-    const prevCustomers = await prisma.user.count({
-      where: {
-        role: { name: 'CUSTOMER' },
-        createdAt: { gte: prevStart, lte: prevEnd }
-      }
-    });
+      prevCustomers = await prisma.user.count({
+        where: {
+          role: { name: 'CUSTOMER' },
+          createdAt: { gte: prevStart, lte: prevEnd }
+        }
+      });
 
-    const totalCustomersCount = await prisma.user.count({
-      where: { role: { name: 'CUSTOMER' } }
-    });
+      totalCustomersCount = await prisma.user.count({
+        where: { role: { name: 'CUSTOMER' } }
+      });
+    }
 
-    // 3. Fetch Conversion Rate (Visitor unique IP counts)
-    const currentSessions = await prisma.visitorLog.count({
-      where: { visitedAt: { gte: start, lte: end } }
-    });
-    const prevSessions = await prisma.visitorLog.count({
-      where: { visitedAt: { gte: prevStart, lte: prevEnd } }
-    });
+    // 3. Conversion Rate
+    let currentSessions = 0;
+    let prevSessions = 0;
+    if (hasReports) {
+      currentSessions = await prisma.visitorLog?.count({
+        where: { visitedAt: { gte: start, lte: end } }
+      }) || 0;
+      prevSessions = await prisma.visitorLog?.count({
+        where: { visitedAt: { gte: prevStart, lte: prevEnd } }
+      }) || 0;
+    }
 
-    // Fallback if no logs exist
     const fallbackSessionsCurrent = currentSessions || Math.max(currentOrdersCount * 25, 100);
     const fallbackSessionsPrev = prevSessions || Math.max(prevOrdersCount * 25, 100);
 
-    const currentConvRate = (currentOrdersCount / fallbackSessionsCurrent) * 100;
-    const prevConvRate = (prevOrdersCount / fallbackSessionsPrev) * 100;
+    const currentConvRate = hasReports ? (currentOrdersCount / fallbackSessionsCurrent) * 100 : 0;
+    const prevConvRate = hasReports ? (prevOrdersCount / fallbackSessionsPrev) * 100 : 0;
 
     const getPercentChange = (curr, prev) => {
       if (prev === 0) return curr > 0 ? 100 : 0;
@@ -2236,174 +2694,191 @@ export const getAdminDashboardData = async (req, res) => {
       dateCursor.setDate(dateCursor.getDate() + 1);
     }
 
-    currentOrders.forEach(o => {
-      const dateStr = o.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      if (dailyDataMap[dateStr]) {
-        dailyDataMap[dateStr].revenue += o.totalAmount;
-        dailyDataMap[dateStr].orders += 1;
-      }
-    });
+    if (hasReports || hasOrders) {
+      currentOrders.forEach(o => {
+        const dateStr = o.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (dailyDataMap[dateStr]) {
+          if (hasReports) dailyDataMap[dateStr].revenue += o.totalAmount;
+          if (hasOrders) dailyDataMap[dateStr].orders += 1;
+        }
+      });
+    }
     const salesChartData = Object.values(dailyDataMap);
 
-    // 5. Inventory alerts (Critical <= 5, Low <= 10, Healthy > 10)
-    const allVariants = await prisma.productVariant.findMany({
-      include: { product: true },
-      orderBy: { stock: 'asc' }
-    });
+    // 5. Inventory alerts
+    let inventoryAlerts = [];
+    if (hasProducts) {
+      const allVariants = await prisma.productVariant.findMany({
+        include: { product: true },
+        orderBy: { stock: 'asc' }
+      });
 
-    const inventoryAlerts = allVariants.map(v => {
-      const stock = v.stock;
-      const reorderLevel = 10;
-      const criticalThreshold = 5;
-      let status = 'Healthy';
-      if (stock <= criticalThreshold) status = 'Critical';
-      else if (stock <= reorderLevel) status = 'Low';
+      inventoryAlerts = allVariants.map(v => {
+        const stock = v.stock;
+        const reorderLevel = 10;
+        const criticalThreshold = 5;
+        let status = 'Healthy';
+        if (stock <= criticalThreshold) status = 'Critical';
+        else if (stock <= reorderLevel) status = 'Low';
 
-      return {
-        id: v.id,
-        name: v.product.name,
-        sku: v.sku,
-        stock,
-        reorderLevel,
-        status,
-        image: v.product.slug ? `/uploads/${v.product.slug}-thumbnail.png` : null
-      };
-    });
+        return {
+          id: v.id,
+          name: v.product.name,
+          sku: v.sku,
+          stock,
+          reorderLevel,
+          status,
+          image: v.product.slug ? `/uploads/${v.product.slug}-thumbnail.png` : null
+        };
+      });
+    }
 
     // 6. Recent Orders
-    const recentOrdersDb = await prisma.order.findMany({
-      where: {
-        createdAt: { gte: start, lte: end }
-      },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    });
+    let recentOrders = [];
+    if (hasOrders) {
+      const recentOrdersDb = await prisma.order.findMany({
+        where: {
+          createdAt: { gte: start, lte: end }
+        },
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      });
 
-    const recentOrders = recentOrdersDb.map(o => ({
-      id: o.orderNumber,
-      customer: `${o.user.firstName} ${o.user.lastName || ''}`.trim(),
-      amount: o.totalAmount,
-      status: o.orderStatus
-    }));
+      recentOrders = recentOrdersDb.map(o => ({
+        id: o.orderNumber,
+        customer: `${o.user.firstName} ${o.user.lastName || ''}`.trim(),
+        amount: o.totalAmount,
+        status: o.orderStatus
+      }));
+    }
 
     // 7. Top Selling Products
-    const orderItems = await prisma.orderItem.findMany({
-      where: {
-        order: {
-          OR: [
-            { paymentStatus: 'SUCCESS' },
-            { orderStatus: 'DELIVERED' }
-          ],
-          orderStatus: { notIn: ['CANCELLED'] },
-          createdAt: { gte: start, lte: end }
+    let topSellingProducts = [];
+    if (hasReports) {
+      const orderItems = await prisma.orderItem.findMany({
+        where: {
+          order: {
+            OR: [
+              { paymentStatus: 'SUCCESS' },
+              { orderStatus: 'DELIVERED' }
+            ],
+            orderStatus: { notIn: ['CANCELLED'] },
+            createdAt: { gte: start, lte: end }
+          }
+        },
+        select: {
+          productId: true,
+          productName: true,
+          quantity: true,
+          price: true
         }
-      },
-      select: {
-        productId: true,
-        productName: true,
-        quantity: true,
-        price: true
-      }
-    });
+      });
 
-    const productSalesMap = {};
-    orderItems.forEach(item => {
-      if (!productSalesMap[item.productId]) {
-        productSalesMap[item.productId] = {
-          id: item.productId,
-          name: item.productName,
-          unitsSold: 0,
-          revenue: 0
-        };
-      }
-      productSalesMap[item.productId].unitsSold += item.quantity;
-      productSalesMap[item.productId].revenue += item.quantity * item.price;
-    });
-    const topSellingProducts = Object.values(productSalesMap)
-      .sort((a, b) => b.unitsSold - a.unitsSold)
-      .slice(0, 5);
+      const productSalesMap = {};
+      orderItems.forEach(item => {
+        if (!productSalesMap[item.productId]) {
+          productSalesMap[item.productId] = {
+            id: item.productId,
+            name: item.productName,
+            unitsSold: 0,
+            revenue: 0
+          };
+        }
+        productSalesMap[item.productId].unitsSold += item.quantity;
+        productSalesMap[item.productId].revenue += item.quantity * item.price;
+      });
+      topSellingProducts = Object.values(productSalesMap)
+        .sort((a, b) => b.unitsSold - a.unitsSold)
+        .slice(0, 5);
+    }
 
     // 8. Recent Reviews
-    const recentReviewsDb = await prisma.review.findMany({
-      where: {
-        createdAt: { gte: start, lte: end }
-      },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    });
+    let recentReviews = [];
+    if (hasReviews) {
+      const recentReviewsDb = await prisma.review.findMany({
+        where: {
+          createdAt: { gte: start, lte: end }
+        },
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      });
 
-    const recentReviews = recentReviewsDb.map(r => ({
-      id: r.id,
-      customer: `${r.user.firstName} ${r.user.lastName || ''}`.trim(),
-      rating: r.rating,
-      comment: r.comment
-    }));
+      recentReviews = recentReviewsDb.map(r => ({
+        id: r.id,
+        customer: `${r.user.firstName} ${r.user.lastName || ''}`.trim(),
+        rating: r.rating,
+        comment: r.comment
+      }));
+    }
 
     // 9. Customer Growth chart
-    const userRegistrations = await prisma.user.findMany({
-      where: {
-        role: { name: 'CUSTOMER' },
-        createdAt: { gte: start, lte: end }
-      },
-      select: { createdAt: true }
-    });
+    let customerGrowthChartData = [];
+    if (hasCustomers) {
+      const userRegistrations = await prisma.user.findMany({
+        where: {
+          role: { name: 'CUSTOMER' },
+          createdAt: { gte: start, lte: end }
+        },
+        select: { createdAt: true }
+      });
 
-    const dailyUsersMap = {};
-    const uCursor = new Date(start);
-    while (uCursor <= end) {
-      const dateStr = uCursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dailyUsersMap[dateStr] = { label: dateStr, count: 0 };
-      uCursor.setDate(uCursor.getDate() + 1);
-    }
-    userRegistrations.forEach(u => {
-      const dateStr = u.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      if (dailyUsersMap[dateStr]) {
-        dailyUsersMap[dateStr].count += 1;
+      const dailyUsersMap = {};
+      const uCursor = new Date(start);
+      while (uCursor <= end) {
+        const dateStr = uCursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dailyUsersMap[dateStr] = { label: dateStr, count: 0 };
+        uCursor.setDate(uCursor.getDate() + 1);
       }
-    });
-    const customerGrowthChartData = Object.values(dailyUsersMap);
+      userRegistrations.forEach(u => {
+        const dateStr = u.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (dailyUsersMap[dateStr]) {
+          dailyUsersMap[dateStr].count += 1;
+        }
+      });
+      customerGrowthChartData = Object.values(dailyUsersMap);
+    }
 
     return res.json({
       success: true,
       data: {
         kpis: {
           revenue: {
-            value: currentRevenue,
-            change: getPercentChange(currentRevenue, prevRevenue),
-            sparkline: salesChartData.map(d => d.revenue)
+            value: hasReports ? currentRevenue : 0,
+            change: hasReports ? getPercentChange(currentRevenue, prevRevenue) : 0,
+            sparkline: hasReports ? salesChartData.map(d => d.revenue) : []
           },
           orders: {
-            value: currentOrdersCount,
-            change: getPercentChange(currentOrdersCount, prevOrdersCount),
-            sparkline: salesChartData.map(d => d.orders)
+            value: hasOrders ? currentOrdersCount : 0,
+            change: hasOrders ? getPercentChange(currentOrdersCount, prevOrdersCount) : 0,
+            sparkline: hasOrders ? salesChartData.map(d => d.orders) : []
           },
           customers: {
-            value: totalCustomersCount,
-            change: getPercentChange(currentCustomers, prevCustomers),
-            sparkline: customerGrowthChartData.map(d => d.count)
+            value: hasCustomers ? totalCustomersCount : 0,
+            change: hasCustomers ? getPercentChange(currentCustomers, prevCustomers) : 0,
+            sparkline: hasCustomers ? customerGrowthChartData.map(d => d.count) : []
           },
           conversion: {
-            value: parseFloat(currentConvRate.toFixed(2)),
-            change: getPercentChange(currentConvRate, prevConvRate),
-            sparkline: salesChartData.map(d => d.orders > 0 ? parseFloat(((d.orders / (fallbackSessionsCurrent / salesChartData.length || 1)) * 100).toFixed(2)) : 0)
+            value: hasReports ? parseFloat(currentConvRate.toFixed(2)) : 0,
+            change: hasReports ? getPercentChange(currentConvRate, prevConvRate) : 0,
+            sparkline: hasReports ? salesChartData.map(d => d.orders > 0 ? parseFloat(((d.orders / (fallbackSessionsCurrent / salesChartData.length || 1)) * 100).toFixed(2)) : 0) : []
           }
         },
         salesPerformance: {
-          revenue: currentRevenue,
-          orders: currentOrdersCount,
-          aov: currentOrdersCount > 0 ? parseFloat((currentRevenue / currentOrdersCount).toFixed(2)) : 0,
-          newCustomers: currentCustomers,
-          chart: salesChartData
+          revenue: hasReports ? currentRevenue : 0,
+          orders: hasOrders ? currentOrdersCount : 0,
+          aov: hasReports && currentOrdersCount > 0 ? parseFloat((currentRevenue / currentOrdersCount).toFixed(2)) : 0,
+          newCustomers: hasCustomers ? currentCustomers : 0,
+          chart: hasReports ? salesChartData : []
         },
-        inventoryAlerts: inventoryAlerts.filter(i => i.status !== 'Healthy').slice(0, 5),
+        inventoryAlerts: hasProducts ? inventoryAlerts.filter(i => i.status !== 'Healthy').slice(0, 5) : [],
         recentOrders,
         topSellingProducts,
         customerGrowth: {
-          total: totalCustomersCount,
-          change: getPercentChange(currentCustomers, prevCustomers),
-          chart: customerGrowthChartData
+          total: hasCustomers ? totalCustomersCount : 0,
+          change: hasCustomers ? getPercentChange(currentCustomers, prevCustomers) : 0,
+          chart: hasCustomers ? customerGrowthChartData : []
         },
         recentReviews
       }

@@ -18,7 +18,13 @@ export const protect = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { role: true, addresses: true, wishlist: { include: { items: true } } },
+      include: { 
+        role: {
+          include: { permissions: true }
+        }, 
+        addresses: true, 
+        wishlist: { include: { items: true } } 
+      },
     });
 
     if (!user) {
@@ -39,6 +45,34 @@ export const protect = async (req, res, next) => {
 export const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role.name)) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to perform this action' });
+    }
+    next();
+  };
+};
+
+export const requirePermission = (permissionName) => {
+  return (req, res, next) => {
+    if (req.user?.role?.name === 'SUPER_ADMIN') {
+      return next();
+    }
+    const permissions = req.user?.role?.permissions || [];
+    const hasPerm = permissions.some(p => p.name === permissionName);
+    if (!hasPerm) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to perform this action' });
+    }
+    next();
+  };
+};
+
+export const requireAnyPermission = (...permissionNames) => {
+  return (req, res, next) => {
+    if (req.user?.role?.name === 'SUPER_ADMIN') {
+      return next();
+    }
+    const permissions = req.user?.role?.permissions || [];
+    const hasAny = permissionNames.some(name => permissions.some(p => p.name === name));
+    if (!hasAny) {
       return res.status(403).json({ success: false, message: 'You do not have permission to perform this action' });
     }
     next();
