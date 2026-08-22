@@ -78,3 +78,25 @@ export const requireAnyPermission = (...permissionNames) => {
     next();
   };
 };
+
+export const checkMaintenanceMode = async (req, res, next) => {
+  try {
+    const settings = await prisma.systemSetting.findUnique({
+      where: { id: 'default-settings' }
+    });
+
+    if (settings && settings.maintenanceMode) {
+      // Allow authenticated staff to bypass maintenance mode
+      const isStaff = req.user && req.user.role && req.user.role.name !== 'CUSTOMER';
+      if (!isStaff) {
+        return res.status(503).json({
+          success: false,
+          message: settings.maintenanceMessage || "The store is currently in maintenance mode. Please try again later."
+        });
+      }
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};

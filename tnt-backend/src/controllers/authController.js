@@ -9,6 +9,41 @@ const generateToken = (userId) => {
   });
 };
 
+const createUserSession = async (userId, req) => {
+  try {
+    const ua = req.headers['user-agent'] || '';
+    let browser = 'Unknown Browser';
+    let os = 'Unknown OS';
+    if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Chrome')) browser = 'Chrome';
+    else if (ua.includes('Safari')) browser = 'Safari';
+    else if (ua.includes('Edge')) browser = 'Edge';
+    else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+    
+    if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'macOS';
+    else if (ua.includes('iPhone')) os = 'iPhone';
+    else if (ua.includes('iPad')) os = 'iPad';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('Linux')) os = 'Linux';
+    const deviceName = `${browser} on ${os}`;
+
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days expiry
+
+    await prisma.userSession.create({
+      data: {
+        userId,
+        ipAddress: typeof ipAddress === 'string' ? ipAddress : '127.0.0.1',
+        userAgent: deviceName,
+        expiresAt
+      }
+    });
+  } catch (err) {
+    console.error('Failed to log user session:', err.message);
+  }
+};
+
 // Helper to generate and send OTP
 const sendVerificationOTP = async (user) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -139,6 +174,8 @@ export const login = async (req, res) => {
     const token = generateToken(user.id);
     delete user.passwordHash;
 
+    await createUserSession(user.id, req);
+
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -204,6 +241,8 @@ export const verifyOTP = async (req, res) => {
 
     const token = generateToken(updatedUser.id);
     delete updatedUser.passwordHash;
+
+    await createUserSession(updatedUser.id, req);
 
     res.cookie('token', token, {
       httpOnly: true,
@@ -314,6 +353,8 @@ export const googleLogin = async (req, res) => {
 
     const token = generateToken(user.id);
     delete user.passwordHash;
+
+    await createUserSession(user.id, req);
 
     res.cookie('token', token, {
       httpOnly: true,

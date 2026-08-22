@@ -82,7 +82,15 @@ import {
   getSettingsPublic,
   getAdminDashboardData,
   getReportsAdmin,
-  restockInventory
+  restockInventory,
+  getShippingZonesAdmin,
+  createShippingZoneAdmin,
+  updateShippingZoneAdmin,
+  deleteShippingZoneAdmin,
+  changePasswordSettings,
+  getActiveSessions,
+  revokeSession,
+  revokeAllOtherSessions
 } from '../controllers/adminController.js';
 
 import {
@@ -123,7 +131,7 @@ import {
 } from '../controllers/blogController.js';
 
 import { uploadImage } from '../controllers/uploadController.js';
-import { protect, restrictTo, requirePermission, requireAnyPermission } from '../middlewares/authMiddleware.js';
+import { protect, restrictTo, requirePermission, requireAnyPermission, checkMaintenanceMode } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
@@ -181,11 +189,11 @@ router.put('/cms/homepage', protect, requirePermission('edit_homepage'), updateH
 router.post('/cms/newsletter/subscribe', subscribeNewsletter);
 
 // ─── Orders & Payments ─────────────────────────────────────────────────────────
-router.post('/orders', protect, createOrder);
+router.post('/orders', protect, checkMaintenanceMode, createOrder);
 router.get('/orders/my-orders', protect, getUserOrders);
 router.get('/orders/track/:orderId', getOrderTracking);
 router.post('/orders/:id/returns', protect, createReturnRequest);
-router.post('/payments/razorpay/create-order', protect, createRazorpayOrder);
+router.post('/payments/razorpay/create-order', protect, checkMaintenanceMode, createRazorpayOrder);
 router.post('/payments/razorpay/verify', protect, verifyRazorpayPayment);
 
 // ─── Address CRUD ─────────────────────────────────────────────────────────────
@@ -311,6 +319,20 @@ router.put('/admin/staff/:id/role', protect, requirePermission('assign_roles'), 
 // ─── System Settings ──────────────────────────────────────────────────────────
 router.get('/admin/settings', protect, requirePermission('view_settings'), getSettingsAdmin);
 router.put('/admin/settings', protect, requirePermission('edit_settings'), updateSettingsAdmin);
+
+// Shipping Zones
+router.get('/admin/shipping/zones', protect, requirePermission('view_settings'), getShippingZonesAdmin);
+router.post('/admin/shipping/zones', protect, requirePermission('edit_settings'), createShippingZoneAdmin);
+router.put('/admin/shipping/zones/:id', protect, requirePermission('edit_settings'), updateShippingZoneAdmin);
+router.delete('/admin/shipping/zones/:id', protect, requirePermission('edit_settings'), deleteShippingZoneAdmin);
+
+// Active Sessions
+router.get('/admin/settings/sessions', protect, getActiveSessions);
+router.delete('/admin/settings/sessions/:id', protect, revokeSession);
+router.delete('/admin/settings/sessions', protect, revokeAllOtherSessions);
+
+// Security Change Password
+router.post('/admin/settings/password', protect, changePasswordSettings);
 
 // ─── Dashboard Analytics & Inventory Restocking ───────────────────────────────
 router.get('/admin/dashboard', protect, requirePermission('view_dashboard'), getAdminDashboardData);

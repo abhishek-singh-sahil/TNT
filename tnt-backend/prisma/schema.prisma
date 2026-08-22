@@ -893,14 +893,111 @@ model MediaAsset {
 
 model SystemSetting {
   id                  String   @id @default("default-settings")
+  
+  // General / Store Info
   siteName            String   @default("TNT Luxury Streetwear")
   siteEmail           String   @default("contact@tntclothing.com")
   sitePhone           String   @default("+91 99999 88888")
   currency            String   @default("INR")
+  logo                String   @default("")
+  favicon             String   @default("")
+  tagline             String   @default("Threadones - Wear Your Vibe")
+  
+  // Business Info
+  businessName        String   @default("Threadones Private Limited")
+  businessType        String   @default("Private Limited")
+  gstin               String   @default("")
+  address             String   @default("123 Business Park, New Delhi, India")
+  city                String   @default("New Delhi")
+  state               String   @default("Delhi")
+  pinCode             String   @default("110001")
+  country             String   @default("India")
+  
+  // Store Status
+  maintenanceMode     Boolean  @default(false)
+  maintenanceMessage  String   @default("We'll be back soon. Thank you for your patience!")
+  
+  // Store Configuration Parameters
+  timezone            String   @default("UTC+05:30")
+  dateFormat          String   @default("DD/MM/YYYY")
+  lowStockThreshold   Int      @default(5)
+  cancellationWindow  Int      @default(30) // in minutes
+  
+  // Payments Gateways
   razorpayKeyId       String   @default("")
   razorpayKeySecret   String   @default("")
   razorpayEnabled     Boolean  @default(true)
+  cardEnabled         Boolean  @default(true)
+  upiEnabled          Boolean  @default(true)
+  netBankingEnabled   Boolean  @default(true)
   codEnabled          Boolean  @default(true)
+  codCharge           Float    @default(50)
+  codMaxLimit         Float    @default(10000)
+  storePaymentInfo    Boolean  @default(true)
+  
+  // Free Shipping Threshold
+  freeShippingEnabled Boolean  @default(true)
   freeShippingMin     Float    @default(1999)
+  
+  // Email Notifications
+  emailNewOrder       Boolean  @default(true)
+  emailOrderConfirm   Boolean  @default(true)
+  emailOrderShipped   Boolean  @default(true)
+  emailOrderDelivered Boolean  @default(true)
+  emailOrderCancelled Boolean  @default(true)
+  emailPaymentFailed  Boolean  @default(true)
+  emailLowStock       Boolean  @default(true)
+  
+  // SMS Notifications
+  smsOrderConfirm     Boolean  @default(true)
+  smsShippingUpdate   Boolean  @default(true)
+  smsDeliveryConfirm  Boolean  @default(true)
+  smsPaymentAlert     Boolean  @default(true)
+  smsLowStock         Boolean  @default(true)
+  smsNewReview        Boolean  @default(true)
+  smsFailedPayment    Boolean  @default(true)
+  
+  // Email From Metadata
+  emailFromName       String   @default("Threadones")
+  emailFromAddress    String   @default("no-reply@tntclothing.com")
+  emailReplyTo        String   @default("support@tntclothing.com")
+  
+  // Security
+  notifyNewLogin      Boolean  @default(true)
+  notifySuspiciousLogin Boolean @default(true)
+  sessionTimeout      Int      @default(30) // in minutes
+  twoFactorEnabled    Boolean  @default(false)
+  
   updatedAt           DateTime @updatedAt
+}
+
+model ShippingZone {
+  id                  String         @id @default(uuid())
+  name                String         @unique
+  regions             String         // Comma-separated region list (e.g. "New Delhi, Gurgaon, Noida")
+  status              String         @default("ACTIVE")
+  estimatedDelivery   String         @default("2-4 working days")
+  rates               ShippingRate[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model ShippingRate {
+  id           String       @id @default(uuid())
+  zoneId       String
+  zone         ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  weightUpper  Float        // max weight in kg
+  charge       Float        // shipping rate charge
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  user      String
+  userId    String?
+  action    String
+  target    String
+  timestamp DateTime @default(now())
+  ip        String?
 }

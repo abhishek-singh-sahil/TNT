@@ -2462,6 +2462,25 @@ export const importPermissionsAdmin = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to sync permissions', error: error.message });
   }
 };
+// Helper for logging audit events
+export const logAuditEvent = async (user, action, target, req) => {
+  try {
+    const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const userName = typeof user === 'string' ? user : `${user.firstName} ${user.lastName || ''} (${user.email})`;
+    await prisma.auditLog.create({
+      data: {
+        user: userName,
+        userId: user?.id || null,
+        action,
+        target,
+        ip: typeof ip === 'string' ? ip : '127.0.0.1'
+      }
+    });
+  } catch (err) {
+    console.error('Failed to log audit event:', err.message);
+  }
+};
+
 export const getSettingsAdmin = async (req, res) => {
   try {
     let settings = await prisma.systemSetting.findUnique({
@@ -2485,6 +2504,11 @@ export const getSettingsAdmin = async (req, res) => {
       });
     }
 
+    // Mask key secret
+    if (settings.razorpayKeySecret) {
+      settings.razorpayKeySecret = '●●●●●●●●●●●●●●●●';
+    }
+
     return res.json({ success: true, settings });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch settings', error: error.message });
@@ -2494,29 +2518,70 @@ export const getSettingsAdmin = async (req, res) => {
 export const updateSettingsAdmin = async (req, res) => {
   try {
     const {
-      siteName,
-      siteEmail,
-      sitePhone,
-      currency,
-      razorpayKeyId,
-      razorpayKeySecret,
-      razorpayEnabled,
-      codEnabled,
-      freeShippingMin
+      siteName, siteEmail, sitePhone, currency, logo, favicon, tagline,
+      businessName, businessType, gstin, address, city, state, pinCode, country,
+      maintenanceMode, maintenanceMessage,
+      timezone, dateFormat, lowStockThreshold, cancellationWindow,
+      razorpayKeyId, razorpayKeySecret, razorpayEnabled,
+      cardEnabled, upiEnabled, netBankingEnabled, codEnabled, codCharge, codMaxLimit, storePaymentInfo,
+      freeShippingEnabled, freeShippingMin,
+      emailNewOrder, emailOrderConfirm, emailOrderShipped, emailOrderDelivered, emailOrderCancelled, emailPaymentFailed, emailLowStock,
+      smsOrderConfirm, smsShippingUpdate, smsDeliveryConfirm, smsPaymentAlert, smsLowStock, smsNewReview, smsFailedPayment,
+      emailFromName, emailFromAddress, emailReplyTo,
+      notifyNewLogin, notifySuspiciousLogin, sessionTimeout, twoFactorEnabled
     } = req.body;
+
+    // Load existing settings to compare and handle secret
+    let existing = await prisma.systemSetting.findUnique({ where: { id: 'default-settings' } });
+
+    let secretToUpdate = undefined;
+    if (razorpayKeySecret !== undefined) {
+      if (razorpayKeySecret !== '●●●●●●●●●●●●●●●●' && razorpayKeySecret !== '' && !razorpayKeySecret.startsWith('●')) {
+        secretToUpdate = razorpayKeySecret;
+      }
+    }
 
     const settings = await prisma.systemSetting.upsert({
       where: { id: 'default-settings' },
       update: {
-        siteName,
-        siteEmail,
-        sitePhone,
-        currency,
+        siteName, siteEmail, sitePhone, currency, logo, favicon, tagline,
+        businessName, businessType, gstin, address, city, state, pinCode, country,
+        maintenanceMode: maintenanceMode !== undefined ? Boolean(maintenanceMode) : undefined,
+        maintenanceMessage,
+        timezone, dateFormat,
+        lowStockThreshold: lowStockThreshold !== undefined ? parseInt(lowStockThreshold) : undefined,
+        cancellationWindow: cancellationWindow !== undefined ? parseInt(cancellationWindow) : undefined,
         razorpayKeyId,
-        razorpayKeySecret,
+        razorpayKeySecret: secretToUpdate,
         razorpayEnabled: razorpayEnabled !== undefined ? Boolean(razorpayEnabled) : undefined,
+        cardEnabled: cardEnabled !== undefined ? Boolean(cardEnabled) : undefined,
+        upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : undefined,
+        netBankingEnabled: netBankingEnabled !== undefined ? Boolean(netBankingEnabled) : undefined,
         codEnabled: codEnabled !== undefined ? Boolean(codEnabled) : undefined,
-        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : undefined
+        codCharge: codCharge !== undefined ? parseFloat(codCharge) : undefined,
+        codMaxLimit: codMaxLimit !== undefined ? parseFloat(codMaxLimit) : undefined,
+        storePaymentInfo: storePaymentInfo !== undefined ? Boolean(storePaymentInfo) : undefined,
+        freeShippingEnabled: freeShippingEnabled !== undefined ? Boolean(freeShippingEnabled) : undefined,
+        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : undefined,
+        emailNewOrder: emailNewOrder !== undefined ? Boolean(emailNewOrder) : undefined,
+        emailOrderConfirm: emailOrderConfirm !== undefined ? Boolean(emailOrderConfirm) : undefined,
+        emailOrderShipped: emailOrderShipped !== undefined ? Boolean(emailOrderShipped) : undefined,
+        emailOrderDelivered: emailOrderDelivered !== undefined ? Boolean(emailOrderDelivered) : undefined,
+        emailOrderCancelled: emailOrderCancelled !== undefined ? Boolean(emailOrderCancelled) : undefined,
+        emailPaymentFailed: emailPaymentFailed !== undefined ? Boolean(emailPaymentFailed) : undefined,
+        emailLowStock: emailLowStock !== undefined ? Boolean(emailLowStock) : undefined,
+        smsOrderConfirm: smsOrderConfirm !== undefined ? Boolean(smsOrderConfirm) : undefined,
+        smsShippingUpdate: smsShippingUpdate !== undefined ? Boolean(smsShippingUpdate) : undefined,
+        smsDeliveryConfirm: smsDeliveryConfirm !== undefined ? Boolean(smsDeliveryConfirm) : undefined,
+        smsPaymentAlert: smsPaymentAlert !== undefined ? Boolean(smsPaymentAlert) : undefined,
+        smsLowStock: smsLowStock !== undefined ? Boolean(smsLowStock) : undefined,
+        smsNewReview: smsNewReview !== undefined ? Boolean(smsNewReview) : undefined,
+        smsFailedPayment: smsFailedPayment !== undefined ? Boolean(smsFailedPayment) : undefined,
+        emailFromName, emailFromAddress, emailReplyTo,
+        notifyNewLogin: notifyNewLogin !== undefined ? Boolean(notifyNewLogin) : undefined,
+        notifySuspiciousLogin: notifySuspiciousLogin !== undefined ? Boolean(notifySuspiciousLogin) : undefined,
+        sessionTimeout: sessionTimeout !== undefined ? parseInt(sessionTimeout) : undefined,
+        twoFactorEnabled: twoFactorEnabled !== undefined ? Boolean(twoFactorEnabled) : undefined
       },
       create: {
         id: 'default-settings',
@@ -2524,13 +2589,61 @@ export const updateSettingsAdmin = async (req, res) => {
         siteEmail: siteEmail || 'contact@tntclothing.com',
         sitePhone: sitePhone || '+91 99999 88888',
         currency: currency || 'INR',
+        logo: logo || '',
+        favicon: favicon || '',
+        tagline: tagline || 'Threadones - Wear Your Vibe',
+        businessName: businessName || 'Threadones Private Limited',
+        businessType: businessType || 'Private Limited',
+        gstin: gstin || '',
+        address: address || '123 Business Park, New Delhi, India',
+        city: city || 'New Delhi',
+        state: state || 'Delhi',
+        pinCode: pinCode || '110001',
+        country: country || 'India',
+        maintenanceMode: maintenanceMode !== undefined ? Boolean(maintenanceMode) : false,
+        maintenanceMessage: maintenanceMessage || "We'll be back soon. Thank you for your patience!",
+        timezone: timezone || "UTC+05:30",
+        dateFormat: dateFormat || "DD/MM/YYYY",
+        lowStockThreshold: lowStockThreshold !== undefined ? parseInt(lowStockThreshold) : 5,
+        cancellationWindow: cancellationWindow !== undefined ? parseInt(cancellationWindow) : 30,
         razorpayKeyId: razorpayKeyId || '',
-        razorpayKeySecret: razorpayKeySecret || '',
+        razorpayKeySecret: secretToUpdate || '',
         razorpayEnabled: razorpayEnabled !== undefined ? Boolean(razorpayEnabled) : true,
+        cardEnabled: cardEnabled !== undefined ? Boolean(cardEnabled) : true,
+        upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : true,
+        netBankingEnabled: netBankingEnabled !== undefined ? Boolean(netBankingEnabled) : true,
         codEnabled: codEnabled !== undefined ? Boolean(codEnabled) : true,
-        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : 1999
+        codCharge: codCharge !== undefined ? parseFloat(codCharge) : 50,
+        codMaxLimit: codMaxLimit !== undefined ? parseFloat(codMaxLimit) : 10000,
+        storePaymentInfo: storePaymentInfo !== undefined ? Boolean(storePaymentInfo) : true,
+        freeShippingEnabled: freeShippingEnabled !== undefined ? Boolean(freeShippingEnabled) : true,
+        freeShippingMin: freeShippingMin !== undefined ? parseFloat(freeShippingMin) : 1999,
+        emailNewOrder: emailNewOrder !== undefined ? Boolean(emailNewOrder) : true,
+        emailOrderConfirm: emailOrderConfirm !== undefined ? Boolean(emailOrderConfirm) : true,
+        emailOrderShipped: emailOrderShipped !== undefined ? Boolean(emailOrderShipped) : true,
+        emailOrderDelivered: emailOrderDelivered !== undefined ? Boolean(emailOrderDelivered) : true,
+        emailOrderCancelled: emailOrderCancelled !== undefined ? Boolean(emailOrderCancelled) : true,
+        emailPaymentFailed: emailPaymentFailed !== undefined ? Boolean(emailPaymentFailed) : true,
+        emailLowStock: emailLowStock !== undefined ? Boolean(emailLowStock) : true,
+        smsOrderConfirm: smsOrderConfirm !== undefined ? Boolean(smsOrderConfirm) : true,
+        smsShippingUpdate: smsShippingUpdate !== undefined ? Boolean(smsShippingUpdate) : true,
+        smsDeliveryConfirm: smsDeliveryConfirm !== undefined ? Boolean(smsDeliveryConfirm) : true,
+        smsPaymentAlert: smsPaymentAlert !== undefined ? Boolean(smsPaymentAlert) : true,
+        smsLowStock: smsLowStock !== undefined ? Boolean(smsLowStock) : true,
+        smsNewReview: smsNewReview !== undefined ? Boolean(smsNewReview) : true,
+        smsFailedPayment: smsFailedPayment !== undefined ? Boolean(smsFailedPayment) : true,
+        emailFromName: emailFromName || 'Threadones',
+        emailFromAddress: emailFromAddress || 'no-reply@tntclothing.com',
+        emailReplyTo: emailReplyTo || 'support@tntclothing.com',
+        notifyNewLogin: notifyNewLogin !== undefined ? Boolean(notifyNewLogin) : true,
+        notifySuspiciousLogin: notifySuspiciousLogin !== undefined ? Boolean(notifySuspiciousLogin) : true,
+        sessionTimeout: sessionTimeout !== undefined ? parseInt(sessionTimeout) : 30,
+        twoFactorEnabled: twoFactorEnabled !== undefined ? Boolean(twoFactorEnabled) : false
       }
     });
+
+    // Audit Log settings change
+    await logAuditEvent(req.user, 'UPDATED_SYSTEM_SETTINGS', 'General / Store parameters config', req);
 
     return res.json({ success: true, message: 'System settings updated successfully', settings });
   } catch (error) {
@@ -2561,11 +2674,202 @@ export const getSettingsPublic = async (req, res) => {
       });
     }
 
-    // Exclude secret key
-    const { razorpayKeySecret, ...publicSettings } = settings;
+    // Exclude secret key and payment gate keys
+    const { razorpayKeySecret, razorpayKeyId, ...publicSettings } = settings;
     return res.json({ success: true, settings: publicSettings });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch public settings', error: error.message });
+  }
+};
+
+// ─── Audit Logs ─────────────────────────────────────────────────────────────
+export const getAuditLogs = async (req, res) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 100
+    });
+    return res.json({ success: true, logs });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch audit logs', error: error.message });
+  }
+};
+
+// ─── Shipping Zones CRUD ──────────────────────────────────────────────────────
+export const getShippingZonesAdmin = async (req, res) => {
+  try {
+    const zones = await prisma.shippingZone.findMany({
+      include: { rates: true },
+      orderBy: { name: 'asc' }
+    });
+    return res.json({ success: true, zones });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch shipping zones', error: error.message });
+  }
+};
+
+export const createShippingZoneAdmin = async (req, res) => {
+  try {
+    const { name, regions, status, estimatedDelivery, rates } = req.body;
+    
+    const zone = await prisma.shippingZone.create({
+      data: {
+        name,
+        regions,
+        status: status || 'ACTIVE',
+        estimatedDelivery: estimatedDelivery || '2-4 working days',
+        rates: rates ? {
+          create: rates.map(r => ({
+            weightUpper: parseFloat(r.weightUpper),
+            charge: parseFloat(r.charge)
+          }))
+        } : undefined
+      },
+      include: { rates: true }
+    });
+
+    await logAuditEvent(req.user, 'CREATED_SHIPPING_ZONE', `Zone: ${name}`, req);
+
+    return res.json({ success: true, message: 'Shipping zone created successfully', zone });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to create shipping zone', error: error.message });
+  }
+};
+
+export const updateShippingZoneAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, regions, status, estimatedDelivery, rates } = req.body;
+
+    // Delete existing rates and recreate
+    if (rates) {
+      await prisma.shippingRate.deleteMany({ where: { zoneId: id } });
+    }
+
+    const zone = await prisma.shippingZone.update({
+      where: { id },
+      data: {
+        name,
+        regions,
+        status,
+        estimatedDelivery,
+        rates: rates ? {
+          create: rates.map(r => ({
+            weightUpper: parseFloat(r.weightUpper),
+            charge: parseFloat(r.charge)
+          }))
+        } : undefined
+      },
+      include: { rates: true }
+    });
+
+    await logAuditEvent(req.user, 'UPDATED_SHIPPING_ZONE', `Zone: ${name || id}`, req);
+
+    return res.json({ success: true, message: 'Shipping zone updated successfully', zone });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update shipping zone', error: error.message });
+  }
+};
+
+export const deleteShippingZoneAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const zone = await prisma.shippingZone.delete({ where: { id } });
+    
+    await logAuditEvent(req.user, 'DELETED_SHIPPING_ZONE', `Zone ID: ${id}`, req);
+
+    return res.json({ success: true, message: 'Shipping zone deleted successfully', zone });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete shipping zone', error: error.message });
+  }
+};
+
+// ─── Change Password Settings ───────────────────────────────────────────────
+export const changePasswordSettings = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      return res.status(400).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hashed }
+    });
+
+    // Revoke all sessions for this user except current
+    await prisma.userSession.deleteMany({
+      where: {
+        userId,
+        // Delete older ones, let authMiddleware handle cookies
+      }
+    });
+
+    await logAuditEvent(req.user, 'CHANGED_PASSWORD', 'User security password change', req);
+
+    return res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to change password', error: error.message });
+  }
+};
+
+// ─── Active Sessions CRUD ─────────────────────────────────────────────────────
+export const getActiveSessions = async (req, res) => {
+  try {
+    const sessions = await prisma.userSession.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json({ success: true, sessions });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to load sessions', error: error.message });
+  }
+};
+
+export const revokeSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.userSession.delete({
+      where: { id, userId: req.user.id }
+    });
+
+    await logAuditEvent(req.user, 'REVOKED_SESSION', `Session ID: ${id}`, req);
+
+    return res.json({ success: true, message: 'Session revoked successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to revoke session', error: error.message });
+  }
+};
+
+export const revokeAllOtherSessions = async (req, res) => {
+  try {
+    const latest = await prisma.userSession.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (latest) {
+      await prisma.userSession.deleteMany({
+        where: {
+          userId: req.user.id,
+          id: { not: latest.id }
+        }
+      });
+    } else {
+      await prisma.userSession.deleteMany({
+        where: { userId: req.user.id }
+      });
+    }
+
+    await logAuditEvent(req.user, 'REVOKED_ALL_OTHER_SESSIONS', 'Security session clear-out', req);
+
+    return res.json({ success: true, message: 'All other sessions revoked successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to revoke other sessions', error: error.message });
   }
 };
 

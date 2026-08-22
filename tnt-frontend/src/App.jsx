@@ -146,6 +146,7 @@ export default function App() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="settings/:tab" element={<AdminSettings />} />
         <Route path="staff" element={<AdminStaff />} />
       </Route>
 

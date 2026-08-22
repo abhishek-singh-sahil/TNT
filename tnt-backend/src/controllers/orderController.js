@@ -20,6 +20,17 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cart items cannot be empty' });
     }
 
+    // Fetch system settings
+    const settings = await prisma.systemSetting.findUnique({
+      where: { id: 'default-settings' }
+    });
+
+    if (paymentMethod === 'COD') {
+      if (settings && !settings.codEnabled) {
+        return res.status(400).json({ success: false, message: 'Cash on Delivery (COD) is currently disabled.' });
+      }
+    }
+
     let verifiedTransactionId = `TXN_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     let initialPaymentStatus = PaymentStatus.PENDING;
 
@@ -115,7 +126,66 @@ export const createOrder = async (req, res) => {
         }
       }
 
-      const totalAmount = subtotal - discountAmount + shippingFee;
+      // Fetch address inside transaction
+      const address = await tx.address.findUnique({ where: { id: addressId } });
+
+      let calculatedShippingFee = 0;
+      if (settings) {
+        if (settings.freeShippingEnabled && subtotal >= settings.freeShippingMin) {
+          calculatedShippingFee = 0;
+        } else if (address) {
+          const zones = await tx.shippingZone.findMany({
+            where: { status: 'ACTIVE' },
+            include: { rates: true }
+          });
+
+          let matchedZone = null;
+          const searchCity = (address.city || '').toLowerCase();
+          const searchState = (address.state || '').toLowerCase();
+
+          for (const zone of zones) {
+            const regions = zone.regions.toLowerCase();
+            if (regions.includes(searchCity) || regions.includes(searchState)) {
+              matchedZone = zone;
+              break;
+            }
+          }
+
+          if (!matchedZone) {
+            matchedZone = zones.find(z => z.name.toLowerCase().includes('india') || z.name.toLowerCase().includes('default'));
+          }
+
+          if (matchedZone && matchedZone.rates.length > 0) {
+            const totalQty = orderItemData.reduce((acc, item) => acc + item.quantity, 0);
+            const totalWeight = totalQty * 0.4;
+            const sortedRates = [...matchedZone.rates].sort((a, b) => a.weightUpper - b.weightUpper);
+            const rate = sortedRates.find(r => totalWeight <= r.weightUpper) || sortedRates[sortedRates.length - 1];
+            if (rate) {
+              calculatedShippingFee = rate.charge;
+            }
+          } else {
+            calculatedShippingFee = 80;
+          }
+        } else {
+          calculatedShippingFee = 80;
+        }
+      } else {
+        calculatedShippingFee = 80;
+      }
+
+      let codCharge = 0;
+      if (paymentMethod === 'COD') {
+        const netSubtotal = subtotal - discountAmount;
+        if (settings) {
+          if (netSubtotal > settings.codMaxLimit) {
+            throw new Error(`COD option is not available for orders exceeding ₹${settings.codMaxLimit}.`);
+          }
+          codCharge = settings.codCharge;
+        }
+      }
+
+      const finalShippingFee = calculatedShippingFee;
+      const totalAmount = subtotal - discountAmount + finalShippingFee + codCharge;
       const orderNumber = `TNT${Math.floor(10000 + Math.random() * 90000)}`;
 
       // Create Order
@@ -126,7 +196,7 @@ export const createOrder = async (req, res) => {
           addressId,
           subtotal,
           discountAmount,
-          shippingFee,
+          shippingFee: finalShippingFee + codCharge,
           totalAmount,
           orderStatus: OrderStatus.CONFIRMED,
           paymentStatus: initialPaymentStatus,
