@@ -84,6 +84,7 @@ import {
   getReportsAdmin,
   restockInventory,
   getShippingZonesAdmin,
+  getShippingZonesPublic,
   createShippingZoneAdmin,
   updateShippingZoneAdmin,
   deleteShippingZoneAdmin,
@@ -163,6 +164,7 @@ router.put('/products/:id', protect, requirePermission('edit_products'), updateP
 router.get('/products/:slug', getProductBySlug);
 router.get('/categories', getCategoriesPublic);
 router.get('/settings', getSettingsPublic);
+router.get('/shipping/zones', getShippingZonesPublic);
 router.delete('/products/:id', protect, requirePermission('delete_products'), deleteProduct);
 
 router.get('/colors', getColors);

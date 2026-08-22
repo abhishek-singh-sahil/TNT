@@ -2700,6 +2700,19 @@ export const getShippingZonesAdmin = async (req, res) => {
   }
 };
 
+export const getShippingZonesPublic = async (req, res) => {
+  try {
+    const zones = await prisma.shippingZone.findMany({
+      where: { status: 'ACTIVE' },
+      include: { rates: true },
+      orderBy: { name: 'asc' }
+    });
+    return res.json({ success: true, zones });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch shipping zones', error: error.message });
+  }
+};
+
 export const createShippingZoneAdmin = async (req, res) => {
   try {
     const { name, regions, status, estimatedDelivery, rates } = req.body;

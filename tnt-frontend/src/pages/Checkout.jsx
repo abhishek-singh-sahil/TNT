@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearCart } from '../store/cartSlice';
 import { selectSettings, selectCurrencySymbol } from '../store/settingsSlice';
-import { addressApi, paymentApi, orderApi, marketingApi } from '../api/services';
+import { addressApi, paymentApi, orderApi, marketingApi, adminApi } from '../api/services';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -20,6 +20,33 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [selectedShipping, setSelectedShipping] = useState('standard');
   const [selectedPayment, setSelectedPayment] = useState('card');
+
+  useEffect(() => {
+    if (settings) {
+      if (selectedPayment === 'card' && settings.cardEnabled === false) {
+        if (settings.upiEnabled ?? true) setSelectedPayment('upi');
+        else if (settings.netBankingEnabled ?? true) setSelectedPayment('netbanking');
+        else if (settings.codEnabled ?? true) setSelectedPayment('cod');
+      }
+    }
+  }, [settings, selectedPayment]);
+
+  const [shippingZones, setShippingZones] = useState([]);
+
+  useEffect(() => {
+    async function loadShippingZones() {
+      try {
+        const res = await adminApi.getShippingZonesPublic();
+        if (res.success && res.zones) {
+          setShippingZones(res.zones);
+        }
+      } catch (err) {
+        console.error('Failed to load shipping zones:', err);
+      }
+    }
+    loadShippingZones();
+  }, []);
+
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -136,8 +163,42 @@ export default function Checkout() {
 
   const subtotal = displayItems.reduce((sum, i) => sum + i.price * i.qty, 0);
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const shippingFee = selectedShipping === 'express' ? 149 : selectedShipping === 'sameday' ? 249 : 0;
-  const total = subtotal - discount + shippingFee;
+
+  // Dynamic shipping calculation
+  const calculateShippingFee = () => {
+    // 1. Check free shipping rule
+    if (settings?.freeShippingEnabled && subtotal >= (settings?.freeShippingMin || 1999)) {
+      return 0;
+    }
+
+    if (selectedShipping === 'express') return 149;
+    if (selectedShipping === 'sameday') return 249;
+
+    const activeAddress = addresses.find(a => a.id === selectedAddressId);
+    if (!activeAddress) return 0;
+
+    const cityStr = (activeAddress.city || '').toLowerCase().trim();
+    const stateStr = (activeAddress.state || '').toLowerCase().trim();
+
+    // Match state/city
+    const matchedZone = shippingZones.find(zone => {
+      const regionsList = zone.regions.split(',').map(r => r.trim().toLowerCase());
+      return regionsList.some(reg => cityStr.includes(reg) || stateStr.includes(reg));
+    });
+
+    if (matchedZone && matchedZone.rates && matchedZone.rates.length > 0) {
+      const totalWeight = displayItems.reduce((sum, item) => sum + (item.qty * 0.4), 0);
+      const sortedRates = [...matchedZone.rates].sort((a, b) => a.weightUpper - b.weightUpper);
+      const fittingRate = sortedRates.find(r => totalWeight <= r.weightUpper) || sortedRates[sortedRates.length - 1];
+      return fittingRate ? fittingRate.charge : 0;
+    }
+
+    return 0;
+  };
+
+  const shippingFee = calculateShippingFee();
+  const codFee = (selectedPayment === 'cod' && (settings?.codEnabled ?? true)) ? (settings?.codCharge ?? 50) : 0;
+  const total = subtotal - discount + shippingFee + codFee;
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
@@ -459,95 +520,101 @@ export default function Checkout() {
 
               <div className="space-y-3">
                 {/* UPI Option */}
-                <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'upi' ? 'border-ink' : 'border-line'}`}>
-                  <label
-                    onClick={() => setSelectedPayment('upi')}
-                    className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={selectedPayment === 'upi'}
-                        onChange={() => setSelectedPayment('upi')}
-                        className="text-ink focus:ring-0"
-                      />
-                      <div>
-                        <div className="font-bold text-xs text-ink">UPI</div>
-                        <div className="text-xs text-muted">Pay using any UPI app (GPay, PhonePe, Paytm)</div>
+                {(settings?.upiEnabled ?? true) && (
+                  <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'upi' ? 'border-ink' : 'border-line'}`}>
+                    <label
+                      onClick={() => setSelectedPayment('upi')}
+                      className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={selectedPayment === 'upi'}
+                          onChange={() => setSelectedPayment('upi')}
+                          className="text-ink focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-bold text-xs text-ink">UPI</div>
+                          <div className="text-xs text-muted">Pay using any UPI app (GPay, PhonePe, Paytm)</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 font-bold text-xs text-purple-700">UPI</div>
-                  </label>
-
-                  {selectedPayment === 'upi'}
-                </div>
+                      <div className="flex items-center gap-2 font-bold text-xs text-purple-700">UPI</div>
+                    </label>
+                  </div>
+                )}
 
                 {/* Credit / Debit Card */}
-                <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'card' ? 'border-ink' : 'border-line'}`}>
-                  <label
-                    onClick={() => setSelectedPayment('card')}
-                    className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={selectedPayment === 'card'}
-                        onChange={() => setSelectedPayment('card')}
-                        className="text-ink focus:ring-0"
-                      />
-                      <div>
-                        <div className="font-bold text-xs text-ink">Credit / Debit Card</div>
-                        <div className="text-xs text-muted">Visa, Mastercard, RuPay & more</div>
+                {(settings?.cardEnabled ?? true) && (
+                  <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'card' ? 'border-ink' : 'border-line'}`}>
+                    <label
+                      onClick={() => setSelectedPayment('card')}
+                      className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={selectedPayment === 'card'}
+                          onChange={() => setSelectedPayment('card')}
+                          className="text-ink focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-bold text-xs text-ink">Credit / Debit Card</div>
+                          <div className="text-xs text-muted">Visa, Mastercard, RuPay & more</div>
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                </div>
+                    </label>
+                  </div>
+                )}
 
                 {/* Net Banking */}
-                <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'netbanking' ? 'border-ink' : 'border-line'}`}>
-                  <label
-                    onClick={() => setSelectedPayment('netbanking')}
-                    className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={selectedPayment === 'netbanking'}
-                        onChange={() => setSelectedPayment('netbanking')}
-                        className="text-ink focus:ring-0"
-                      />
-                      <div>
-                        <div className="font-bold text-xs text-ink">Net Banking</div>
-                        <div className="text-xs text-muted">All major Indian banks supported</div>
+                {(settings?.netBankingEnabled ?? true) && (
+                  <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'netbanking' ? 'border-ink' : 'border-line'}`}>
+                    <label
+                      onClick={() => setSelectedPayment('netbanking')}
+                      className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={selectedPayment === 'netbanking'}
+                          onChange={() => setSelectedPayment('netbanking')}
+                          className="text-ink focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-bold text-xs text-ink">Net Banking</div>
+                          <div className="text-xs text-muted">All major Indian banks supported</div>
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                </div>
+                    </label>
+                  </div>
+                )}
 
                 {/* Cash on Delivery */}
-                <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'cod' ? 'border-ink' : 'border-line'}`}>
-                  <label
-                    onClick={() => setSelectedPayment('cod')}
-                    className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={selectedPayment === 'cod'}
-                        onChange={() => setSelectedPayment('cod')}
-                        className="text-ink focus:ring-0"
-                      />
-                      <div>
-                        <div className="font-bold text-xs text-ink">Cash on Delivery</div>
-                        <div className="text-xs text-muted">Pay cash when your shipment arrives</div>
+                {(settings?.codEnabled ?? true) && (
+                  <div className={`border-2 rounded-lg overflow-hidden ${selectedPayment === 'cod' ? 'border-ink' : 'border-line'}`}>
+                    <label
+                      onClick={() => setSelectedPayment('cod')}
+                      className="flex items-center justify-between p-4 cursor-pointer bg-stone/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={selectedPayment === 'cod'}
+                          onChange={() => setSelectedPayment('cod')}
+                          className="text-ink focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-bold text-xs text-ink">Cash on Delivery</div>
+                          <div className="text-xs text-muted">Pay cash when your shipment arrives</div>
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                </div>
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 p-3 bg-stone rounded text-xs text-muted flex items-center gap-2">
@@ -666,12 +733,18 @@ export default function Checkout() {
                     <span className="font-bold">- {currencySymbol}{discount}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-muted">
+                 <div className="flex justify-between text-muted">
                   <span>Shipping</span>
                   <span className="font-bold text-emerald-700">
                     {shippingFee === 0 ? 'FREE' : `${currencySymbol}${shippingFee}`}
                   </span>
                 </div>
+                {codFee > 0 && (
+                  <div className="flex justify-between text-muted">
+                    <span>COD Surcharge</span>
+                    <span className="font-bold text-ink">{currencySymbol}{codFee}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-extrabold text-ink pt-3 border-t border-line">
                   <span>Total <span className="text-[10px] font-normal text-muted block">(Inclusive of all taxes)</span></span>
                   <span className="text-lg">{currencySymbol}{total.toLocaleString()}</span>

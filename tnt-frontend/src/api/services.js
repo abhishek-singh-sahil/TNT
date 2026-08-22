@@ -124,6 +124,7 @@ export const adminApi = {
   getSettings: () => apiClient.get('/admin/settings'),
   updateSettings: (payload) => apiClient.put('/admin/settings', payload),
   getSettingsPublic: () => apiClient.get('/settings'),
+  getShippingZonesPublic: () => apiClient.get('/shipping/zones'),
   getShippingZones: () => apiClient.get('/admin/shipping/zones'),
   createShippingZone: (payload) => apiClient.post('/admin/shipping/zones', payload),
   updateShippingZone: (id, payload) => apiClient.put(`/admin/shipping/zones/${id}`, payload),

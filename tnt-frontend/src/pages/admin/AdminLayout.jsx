@@ -20,13 +20,15 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { useRBAC } from '../../hooks/useRBAC';
+import { selectSettings } from '../../store/settingsSlice';
 
 export default function AdminLayout() {
   const location = useLocation();
   const dispatch = useDispatch();
+  const settings = useSelector(selectSettings);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
@@ -161,7 +163,11 @@ export default function AdminLayout() {
           {/* Logo Bar */}
           <div className="h-16 px-6 border-b border-line flex items-center justify-between">
             <Link to="/admin" className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold tracking-tighter text-ink">TNT</span>
+              {settings?.logo ? (
+                <img src={settings.logo} alt={settings.siteName || 'TNT'} className="h-7 object-contain" />
+              ) : (
+                <span className="text-2xl font-extrabold tracking-tighter text-ink">TNT</span>
+              )}
               <span className="text-[10px] font-extrabold uppercase bg-ink text-paper px-2 py-0.5 rounded tracking-widest">
                 ENTERPRISE
               </span>

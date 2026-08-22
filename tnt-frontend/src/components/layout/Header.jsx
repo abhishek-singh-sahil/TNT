@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown } from 'lucide-react'
 import { selectCartCount } from '../../store/cartSlice'
 import { selectWishlistCount } from '../../store/wishlistSlice'
+import { selectSettings } from '../../store/settingsSlice'
 import SearchDrawer from '../common/SearchDrawer'
 import MobileDrawer from '../common/MobileDrawer'
 import { productApi, adminApi } from '../../api/services'
@@ -22,6 +23,7 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const cartCount = useSelector(selectCartCount)
   const wishlistCount = useSelector(selectWishlistCount)
+  const settings = useSelector(selectSettings)
 
   const [categories, setCategories] = useState([]);
   const [collections, setCollections] = useState([]);
@@ -60,8 +62,12 @@ export default function Header() {
           <Menu size={22} />
         </button>
 
-        <Link to="/" className="font-display font-extrabold text-2xl tracking-tight">
-          TNT
+        <Link to="/" className="font-display font-extrabold text-2xl tracking-tight flex items-center gap-2">
+          {settings?.logo ? (
+            <img src={settings.logo} alt={settings.siteName || 'TNT'} className="h-8 md:h-10 object-contain" />
+          ) : (
+            <span>{settings?.siteName ? settings.siteName.split(' ')[0] : 'TNT'}</span>
+          )}
         </Link>
 
         <nav className="hidden xl:flex items-center gap-8 text-[13px] font-semibold uppercase tracking-wide">

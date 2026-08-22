@@ -53,6 +53,24 @@ export default function App() {
         const res = await adminApi.getSettingsPublic();
         if (res.success && res.settings) {
           dispatch(setSettings(res.settings));
+
+          // Dynamically update favicon
+          if (res.settings.favicon) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = 'icon';
+              document.getElementsByTagName('head')[0].appendChild(link);
+            }
+            link.href = res.settings.favicon;
+          }
+
+          // Dynamically update title
+          if (res.settings.siteName) {
+            document.title = res.settings.tagline 
+              ? `${res.settings.siteName} — ${res.settings.tagline}`
+              : res.settings.siteName;
+          }
         }
       } catch (err) {
         console.error('Failed to load system settings on storefront:', err);
