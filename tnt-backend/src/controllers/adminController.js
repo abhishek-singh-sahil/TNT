@@ -72,14 +72,6 @@ export const getAdminDashboardMetrics = async (req, res) => {
   }
 };
 
-export const getAuditLogs = async (req, res) => {
-  try {
-    return res.json({ success: true, logs: [] });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch audit logs', error: error.message });
-  }
-};
-
 export const getCategoriesAdmin = async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
