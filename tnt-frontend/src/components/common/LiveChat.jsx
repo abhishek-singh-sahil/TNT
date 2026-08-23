@@ -12,8 +12,6 @@ export default function LiveChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState('');
-  const [userMsgCount, setUserMsgCount] = useState(0);
-  const [hasEscalated, setHasEscalated] = useState(false);
 
   const location = useLocation();
   const messagesEndRef = useRef(null);
@@ -21,15 +19,10 @@ export default function LiveChat() {
   const settings = useSelector(selectSettings);
   const currencySymbol = useSelector(selectCurrencySymbol) || '₹';
 
-  const supportEmail = settings?.siteEmail || 'support@threadntones.in';
-  const supportPhone = settings?.sitePhone || '+91 99999 88888';
-
   // Generate or load conversation state on mount
   useEffect(() => {
     const savedChat = localStorage.getItem('tnt_support_chat');
     const savedConvId = localStorage.getItem('tnt_support_conversation_id');
-    const savedCount = localStorage.getItem('tnt_support_user_msg_count');
-    const savedEscalated = localStorage.getItem('tnt_support_has_escalated');
 
     if (savedChat) {
       setMessages(JSON.parse(savedChat));
@@ -50,14 +43,6 @@ export default function LiveChat() {
       const newId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setConversationId(newId);
       localStorage.setItem('tnt_support_conversation_id', newId);
-    }
-
-    if (savedCount) {
-      setUserMsgCount(parseInt(savedCount, 10));
-    }
-
-    if (savedEscalated) {
-      setHasEscalated(savedEscalated === 'true');
     }
   }, []);
 
@@ -80,10 +65,6 @@ export default function LiveChat() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-
-    const newMsgCount = userMsgCount + 1;
-    setUserMsgCount(newMsgCount);
-    localStorage.setItem('tnt_support_user_msg_count', newMsgCount.toString());
 
     // Format chat history for backend (Gemini expects role/text structures)
     // Filter out welcome message/product cards arrays for plain text context
@@ -110,11 +91,6 @@ export default function LiveChat() {
           products: response.products || []
         };
         setMessages((prev) => [...prev, replyMessage]);
-
-        // Human Escalation Check (after 5 user messages)
-        if (newMsgCount >= 5 && !hasEscalated) {
-          triggerEscalation();
-        }
       } else {
         triggerErrorFallback(response.message || 'Unable to get response');
       }
@@ -136,24 +112,10 @@ export default function LiveChat() {
     setMessages((prev) => [...prev, errorBubble]);
   };
 
-  const triggerEscalation = () => {
-    setHasEscalated(true);
-    localStorage.setItem('tnt_support_has_escalated', 'true');
-    const escalationBubble = {
-      role: 'model',
-      text: `Need to speak to a human support agent? Please contact our official Threadntones Customer Support team:\n\n✉️ Email: ${supportEmail}\n📞 Phone: ${supportPhone}\n\nPlease include your order number and query summary so we can help you faster!`,
-      isEscalation: true
-    };
-    setMessages((prev) => [...prev, escalationBubble]);
-  };
-
   const clearChat = () => {
     if (!window.confirm('Are you sure you want to clear your support chat history?')) return;
     localStorage.removeItem('tnt_support_chat');
-    localStorage.removeItem('tnt_support_user_msg_count');
-    localStorage.removeItem('tnt_support_has_escalated');
-    setUserMsgCount(0);
-    setHasEscalated(false);
+    localStorage.removeItem('tnt_support_conversation_id');
     setMessages([
       {
         role: 'model',
@@ -184,13 +146,13 @@ export default function LiveChat() {
           <div className="bg-ink p-4 text-paper flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="w-8 h-8 rounded-full bg-stone/20 border border-line flex items-center justify-center">
-                  <Sparkles className="w-4.5 h-4.5 text-amber-400" />
+                <div className="w-8 h-8 rounded-full bg-paper border border-line flex items-center justify-center">
+                  <span className="font-extrabold text-[10px] tracking-tighter text-ink font-mono">TNT</span>
                 </div>
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-paper" />
               </div>
               <div>
-                <span className="font-extrabold text-xs uppercase tracking-wider block">Threadntones AI Support</span>
+                <span className="font-extrabold text-xs uppercase tracking-wider block">TNT Support</span>
                 <span className="text-[9px] text-paper/70 font-semibold uppercase tracking-wide">Replies Instantly</span>
               </div>
             </div>
@@ -220,16 +182,22 @@ export default function LiveChat() {
                     msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
                   }`}
                 >
-                  <div className="w-7 h-7 rounded-full bg-stone flex items-center justify-center shrink-0 border border-line">
-                    <User className="w-3.5 h-3.5 text-muted" />
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-line ${
+                    msg.role === 'user' ? 'bg-stone' : 'bg-ink'
+                  }`}>
+                    {msg.role === 'user' ? (
+                      <User className="w-3.5 h-3.5 text-muted" />
+                    ) : (
+                      <span className="text-[8px] font-black text-paper font-mono">TNT</span>
+                    )}
                   </div>
                   <div
-                    className={`p-3 rounded-xl text-xs leading-relaxed font-semibold whitespace-pre-line ${
+                    className={`p-3 text-xs leading-relaxed font-semibold whitespace-pre-line ${
                       msg.role === 'user'
-                        ? 'bg-ink text-paper rounded-tr-none'
+                        ? 'bg-ink text-paper rounded-tr-none rounded-br-md rounded-l-md'
                         : msg.isError
-                        ? 'bg-red-50 border border-red-200 text-red-700 rounded-tl-none shadow-xs'
-                        : 'bg-paper text-ink border border-line rounded-tl-none shadow-xs'
+                        ? 'bg-red-50 border border-red-200 text-red-700 rounded-tl-none rounded-bl-md rounded-r-md shadow-xs'
+                        : 'bg-paper text-ink border border-line rounded-tl-none rounded-bl-md rounded-r-md shadow-xs'
                     }`}
                   >
                     {msg.text}
@@ -300,10 +268,10 @@ export default function LiveChat() {
             {/* Typing Indicator */}
             {isLoading && (
               <div className="flex gap-2 max-w-[80%] mr-auto items-center animate-pulse">
-                <div className="w-7 h-7 rounded-full bg-stone flex items-center justify-center border border-line">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                <div className="w-7 h-7 rounded-full bg-ink flex items-center justify-center shrink-0 border border-line">
+                  <span className="text-[8px] font-black text-paper font-mono animate-pulse">TNT</span>
                 </div>
-                <div className="p-3 bg-paper text-ink border border-line rounded-xl rounded-tl-none text-[10px] font-bold flex gap-1 items-center">
+                <div className="p-3 bg-paper text-ink border border-line rounded-tl-none rounded-bl-md rounded-r-md text-[10px] font-bold flex gap-1 items-center">
                   <span className="w-1.5 h-1.5 bg-ink/75 rounded-full animate-bounce delay-75" />
                   <span className="w-1.5 h-1.5 bg-ink/75 rounded-full animate-bounce delay-150" />
                   <span className="w-1.5 h-1.5 bg-ink/75 rounded-full animate-bounce delay-300" />

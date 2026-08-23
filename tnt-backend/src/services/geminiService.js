@@ -397,15 +397,28 @@ export const handleAIChat = async (message, history = [], user = null, context =
       tools: TOOLS
     });
 
-    // Format history for Gemini SDK
-    // Gemini history format is array of { role: 'user' | 'model', parts: [{ text: '...' }] }
-    const geminiHistory = history.map(h => ({
-      role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.text }]
-    }));
+    // Clean and validate history to ensure:
+    // 1. First message must be a 'user' role.
+    // 2. Roles must strictly alternate: user -> model -> user -> model.
+    // 3. Ends with 'model' so the new user message can be appended cleanly.
+    let cleanedHistory = [];
+    let nextExpectedRole = 'user';
+    for (let h of history) {
+      const role = h.role === 'user' ? 'user' : 'model';
+      if (role === nextExpectedRole && h.text && h.text.trim()) {
+        cleanedHistory.push({
+          role,
+          parts: [{ text: h.text }]
+        });
+        nextExpectedRole = nextExpectedRole === 'user' ? 'model' : 'user';
+      }
+    }
+    if (cleanedHistory.length > 0 && cleanedHistory[cleanedHistory.length - 1].role === 'user') {
+      cleanedHistory.pop();
+    }
 
     const chat = model.startChat({
-      history: geminiHistory
+      history: cleanedHistory
     });
 
     let result = await chat.sendMessage(message);
