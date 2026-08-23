@@ -380,7 +380,7 @@ export const handleAIChat = async (message, history = [], user = null, context =
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     
     let finalInstruction = SYSTEM_INSTRUCTION;
     if (context && context.currentPage) {
