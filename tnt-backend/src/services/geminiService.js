@@ -400,55 +400,66 @@ export const handleAIChat = async (message, history = [], user = null, context =
     // Clean and validate history to ensure:
     // 1. First message must be a 'user' role.
     // 2. Roles must strictly alternate: user -> model -> user -> model.
-    // 3. Ends with 'model' so the new user message can be appended cleanly.
-    let cleanedHistory = [];
+    let contents = [];
     let nextExpectedRole = 'user';
     for (let h of history) {
       const role = h.role === 'user' ? 'user' : 'model';
       if (role === nextExpectedRole && h.text && h.text.trim()) {
-        cleanedHistory.push({
+        contents.push({
           role,
           parts: [{ text: h.text }]
         });
         nextExpectedRole = nextExpectedRole === 'user' ? 'model' : 'user';
       }
     }
-    if (cleanedHistory.length > 0 && cleanedHistory[cleanedHistory.length - 1].role === 'user') {
-      cleanedHistory.pop();
+    if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+      contents.pop();
     }
 
-    const chat = model.startChat({
-      history: cleanedHistory
+    // Append the new user message turn
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
     });
 
-    let result = await chat.sendMessage(message);
+    let result = await model.generateContent({ contents });
     let responseText = '';
     let products = [];
     let limit = 3;
 
     // Check if the model wants to call a tool
-    let functionCalls = result.response.functionCalls;
+    let functionCalls = result.response.functionCalls ? result.response.functionCalls() : [];
 
     while (functionCalls && functionCalls.length > 0 && limit > 0) {
-      const call = functionCalls[0];
-      const toolResult = await executeTool(call.name, call.args, user);
+      // Add model's turn (containing function call part) to history
+      contents.push(result.response.candidates[0].content);
 
-      // Save product recommendations if this is a product search tool
-      if (call.name === 'searchProducts' && Array.isArray(toolResult)) {
-        products = toolResult;
-      }
+      const responseParts = [];
+      for (const call of functionCalls) {
+        const toolResult = await executeTool(call.name, call.args, user);
 
-      // Send the tool output back to Gemini
-      result = await chat.sendMessage([
-        {
+        // Save product recommendations if this is a product search tool
+        if (call.name === 'searchProducts' && Array.isArray(toolResult)) {
+          products = toolResult;
+        }
+
+        responseParts.push({
           functionResponse: {
             name: call.name,
             response: { result: toolResult }
           }
-        }
-      ]);
+        });
+      }
 
-      functionCalls = result.response.functionCalls;
+      // Add function responses as a 'user' turn to history
+      contents.push({
+        role: 'user',
+        parts: responseParts
+      });
+
+      // Request next turn from model
+      result = await model.generateContent({ contents });
+      functionCalls = result.response.functionCalls ? result.response.functionCalls() : [];
       limit--;
     }
 
