@@ -132,7 +132,18 @@ import {
 } from '../controllers/blogController.js';
 
 import { uploadImage } from '../controllers/uploadController.js';
-import { protect, restrictTo, requirePermission, requireAnyPermission, checkMaintenanceMode } from '../middlewares/authMiddleware.js';
+import { protect, restrictTo, requirePermission, requireAnyPermission, checkMaintenanceMode, optionalProtect } from '../middlewares/authMiddleware.js';
+import { chatWithAI } from '../controllers/aiController.js';
+import rateLimit from 'express-rate-limit';
+
+const aiChatLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 15,
+  message: {
+    success: false,
+    message: "Support is currently busy. Please try again shortly."
+  }
+});
 
 const router = express.Router();
 
@@ -157,7 +168,10 @@ const uploadMemory = multer({ storage: multer.memoryStorage() });
 router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
-router.post('/auth/verify-otp', verifyOTP);// ─── Public Catalog Routes ────────────────────────────────────────────────────
+router.post('/auth/verify-otp', verifyOTP);
+router.post('/ai/chat', aiChatLimiter, optionalProtect, chatWithAI);
+
+// ─── Public Catalog Routes ────────────────────────────────────────────────────
 router.get('/products', getProducts);
 router.post('/products', protect, requirePermission('create_products'), createProduct);
 router.put('/products/:id', protect, requirePermission('edit_products'), updateProduct);

@@ -183,6 +183,10 @@ export const reportsApi = {
   getReports: (params) => apiClient.get('/admin/reports', { params })
 };
 
+export const aiApi = {
+  chat: (payload) => apiClient.post('/ai/chat', payload),
+};
+
 
 
 

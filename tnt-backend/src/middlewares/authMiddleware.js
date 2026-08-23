@@ -100,3 +100,38 @@ export const checkMaintenanceMode = async (req, res, next) => {
     next();
   }
 };
+
+export const optionalProtect = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tnt_luxury_streetwear_secret_key_2024');
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      include: { 
+        role: {
+          include: { permissions: true }
+        }, 
+        addresses: true, 
+        wishlist: { include: { items: true } } 
+      },
+    });
+
+    if (user && !user.isBlocked) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
