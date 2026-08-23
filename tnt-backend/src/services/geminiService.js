@@ -1,11 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../config/prisma.js';
 
-// Initialize genAI optionally to avoid crash if API key is missing
-let genAI = null;
-if (process.env.GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-}
+
 
 // System Instruction
 const SYSTEM_INSTRUCTION = `You are the official Threadntones Customer Support Assistant for the TNT Luxury Streetwear clothing brand.
@@ -373,12 +369,15 @@ const executeTool = async (name, args, user) => {
 
 // Main Chat processing service
 export const handleAIChat = async (message, history = [], user = null, context = null) => {
-  if (!genAI) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return {
       text: "Our AI Support Assistant is currently unavailable because the API key is not configured. Please try again shortly or contact support.",
       products: []
     };
   }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
     const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
