@@ -25,6 +25,9 @@ const ORDER_STATUS_CONFIG = {
   DELIVERED:        { label: 'Delivered',         cls: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-400' },
   CANCELLED:        { label: 'Cancelled',         cls: 'bg-red-50 text-red-700 border-red-200',       dot: 'bg-red-400' },
   RETURNED:         { label: 'Returned',          cls: 'bg-rose-50 text-rose-700 border-rose-200',    dot: 'bg-rose-400' },
+  RETURN_REQUESTED: { label: 'Return Requested',  cls: 'bg-rose-100 text-rose-800 border-rose-200',   dot: 'bg-rose-500' },
+  RETURN_STARTED:   { label: 'Return Started',    cls: 'bg-indigo-100 text-indigo-800 border-indigo-200', dot: 'bg-indigo-500' },
+  RETURNED_AND_REFUNDED: { label: 'Returned & Refunded', cls: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
 };
 
 const PAY_STATUS_CONFIG = {
@@ -34,7 +37,7 @@ const PAY_STATUS_CONFIG = {
   REFUNDED: { label: 'Refunded', cls: 'text-slate-500 font-bold' },
 };
 
-const ALL_STATUSES = ['PENDING','CONFIRMED','PACKED','SHIPPED','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','CANCELLED','RETURNED'];
+const ALL_STATUSES = ['PENDING','CONFIRMED','PACKED','SHIPPED','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','CANCELLED','RETURNED','RETURN_REQUESTED','RETURN_STARTED','RETURNED_AND_REFUNDED'];
 
 const VALID_TRANSITIONS = {
   PENDING:          ['CONFIRMED','CANCELLED'],
@@ -43,7 +46,10 @@ const VALID_TRANSITIONS = {
   SHIPPED:          ['IN_TRANSIT','CANCELLED'],
   IN_TRANSIT:       ['OUT_FOR_DELIVERY','CANCELLED'],
   OUT_FOR_DELIVERY: ['DELIVERED'],
-  DELIVERED:        [],
+  DELIVERED:        ['RETURN_REQUESTED'],
+  RETURN_REQUESTED: ['RETURN_STARTED','DELIVERED'],
+  RETURN_STARTED:   ['RETURNED_AND_REFUNDED'],
+  RETURNED_AND_REFUNDED: [],
   CANCELLED:        [],
   RETURNED:         [],
 };

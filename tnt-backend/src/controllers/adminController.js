@@ -1488,6 +1488,20 @@ export const updateOrderStatusAdmin = async (req, res) => {
     const updateData = { orderStatus: status };
     if (status === 'DELIVERED') {
       updateData.paymentStatus = 'SUCCESS';
+    } else if (status === 'RETURNED_AND_REFUNDED' || status === 'CANCELLED') {
+      updateData.paymentStatus = 'REFUNDED';
+      
+      const orderItems = await prisma.orderItem.findMany({
+        where: { orderId: id }
+      });
+      for (const item of orderItems) {
+        if (item.productVariantId) {
+          await prisma.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stock: { increment: item.quantity } }
+          });
+        }
+      }
     }
 
     const order = await prisma.order.update({
