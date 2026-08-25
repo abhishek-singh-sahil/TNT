@@ -109,6 +109,26 @@ export default function OrderTracking() {
 
   const isDelivered = order.orderStatus === 'DELIVERED';
   const isReturned = order.orderStatus === 'RETURNED';
+  const isReturnRequested = order.orderStatus === 'RETURN_REQUESTED';
+  const isReturnStarted = order.orderStatus === 'RETURN_STARTED';
+  const isReturnedAndRefunded = order.orderStatus === 'RETURNED_AND_REFUNDED';
+  const canCancel = ['PENDING', 'CONFIRMED', 'PACKED'].includes(order.orderStatus);
+
+  const handleCancelOrder = async () => {
+    if (!window.confirm('Are you sure you want to cancel this order?')) return;
+    try {
+      setLoading(true);
+      const res = await orderApi.cancelOrder(order.id);
+      if (res.success) {
+        toast.success('Order cancelled successfully!');
+        fetchTracking();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to cancel order');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-paper min-h-screen pt-4 pb-16">
@@ -155,7 +175,7 @@ export default function OrderTracking() {
                       Status timeline for your package shipment.<br />
                       Last update: <span className="font-semibold text-ink">{new Date(order.updatedAt).toLocaleDateString()}</span>
                     </p>
-                    <div className="pt-2 flex gap-2">
+                    <div className="pt-2 flex flex-wrap gap-2">
                       {isDelivered && (
                         <button
                           onClick={() => setReturnModalOpen(true)}
@@ -164,9 +184,27 @@ export default function OrderTracking() {
                           <RefreshCw className="w-4 h-4" /> Request Return/Exchange
                         </button>
                       )}
-                      {isReturned && (
-                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-3 py-1 rounded border border-amber-200">
-                          RETURN REQUEST PENDING
+                      {canCancel && (
+                        <button
+                          onClick={handleCancelOrder}
+                          className="bg-red-500 text-paper text-xs font-bold px-4.5 py-2.5 rounded uppercase tracking-wider hover:bg-red-600 transition-all"
+                        >
+                          Cancel Order
+                        </button>
+                      )}
+                      {(isReturned || isReturnRequested) && (
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-3 py-2 rounded border border-amber-200 uppercase">
+                          Return Request Pending
+                        </span>
+                      )}
+                      {isReturnStarted && (
+                        <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-3 py-2 rounded border border-indigo-200 uppercase">
+                          Return Started
+                        </span>
+                      )}
+                      {isReturnedAndRefunded && (
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-3 py-2 rounded border border-emerald-200 uppercase">
+                          Returned & Refunded
                         </span>
                       )}
                     </div>

@@ -315,6 +315,7 @@ export default function AdminDashboard() {
               sparklineData={kpis.revenue.sparkline}
               type="revenue"
               icon={DollarSign}
+              onClick={() => setSalesTab('revenue')}
             />
           )}
           {hasOrders && (
@@ -325,6 +326,7 @@ export default function AdminDashboard() {
               sparklineData={kpis.orders.sparkline}
               type="orders"
               icon={ShoppingBag}
+              onClick={() => setSalesTab('orders')}
             />
           )}
           {hasCustomers && (
@@ -335,6 +337,7 @@ export default function AdminDashboard() {
               sparklineData={kpis.customers.sparkline}
               type="customers"
               icon={Users}
+              onClick={() => setSalesTab('customers')}
             />
           )}
           {hasReports && (
@@ -345,6 +348,7 @@ export default function AdminDashboard() {
               sparklineData={kpis.conversion.sparkline}
               type="conversion"
               icon={TrendingUp}
+              onClick={() => setSalesTab('conversion')}
             />
           )}
         </div>
@@ -385,6 +389,26 @@ export default function AdminDashboard() {
                         }`}
                       >
                         Orders
+                      </button>
+                    )}
+                    {hasCustomers && (
+                      <button
+                        onClick={() => setSalesTab('customers')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          salesTab === 'customers' ? 'bg-ink text-paper' : 'text-ink hover:bg-stone'
+                        }`}
+                      >
+                        Customers
+                      </button>
+                    )}
+                    {hasReports && (
+                      <button
+                        onClick={() => setSalesTab('conversion')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          salesTab === 'conversion' ? 'bg-ink text-paper' : 'text-ink hover:bg-stone'
+                        }`}
+                      >
+                        Conversion
                       </button>
                     )}
                   </div>
@@ -431,38 +455,67 @@ export default function AdminDashboard() {
                     <span className="font-extrabold text-xs text-ink">No Transaction Metrics</span>
                     <p className="text-[10px] text-muted max-w-xs mt-1">Once orders are placed and processed, real-time curves will display here.</p>
                   </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={salesPerformance.chart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E7" />
-                      <XAxis dataKey="label" stroke="#6B6B6B" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#6B6B6B" fontSize={10} tickLine={false} />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-paper border border-line p-3 rounded-lg shadow-md text-xs font-semibold">
-                                <p className="text-muted mb-1">{label}</p>
-                                {payload.map((p, idx) => (
-                                  <p key={idx} className="text-ink">
-                                    <span className="font-bold">{p.name === 'revenue' ? 'Revenue' : 'Orders'}:</span> {p.name === 'revenue' ? formatCurrency(p.value) : p.value}
-                                  </p>
-                                ))}
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      {salesTab === 'revenue' && hasReports ? (
-                        <Line type="monotone" dataKey="revenue" name="revenue" stroke="#111" strokeWidth={2.5} dot={{ r: 3 }} />
-                      ) : (
-                        <Line type="monotone" dataKey="orders" name="orders" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
-                      )}
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                ) : (() => {
+                  const chartData = (salesPerformance.chart || []).map((d, idx) => {
+                    const convVal = kpis.conversion?.sparkline?.[idx] || 0;
+                    return { ...d, conversion: convVal };
+                  });
+
+                  let graphData = chartData;
+                  let graphKey = 'revenue';
+                  let graphName = 'Revenue';
+                  let graphStroke = '#10b981';
+
+                  if (salesTab === 'revenue') {
+                    graphData = chartData;
+                    graphKey = 'revenue';
+                    graphName = 'Revenue';
+                    graphStroke = '#10b981';
+                  } else if (salesTab === 'orders') {
+                    graphData = chartData;
+                    graphKey = 'orders';
+                    graphName = 'Orders';
+                    graphStroke = '#3b82f6';
+                  } else if (salesTab === 'customers') {
+                    graphData = data?.customerGrowth?.chart || [];
+                    graphKey = 'count';
+                    graphName = 'Customers';
+                    graphStroke = '#a855f7';
+                  } else if (salesTab === 'conversion') {
+                    graphData = chartData;
+                    graphKey = 'conversion';
+                    graphName = 'Conversion Rate';
+                    graphStroke = '#f59e0b';
+                  }
+
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={graphData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E7" />
+                        <XAxis dataKey="label" stroke="#6B6B6B" fontSize={10} tickLine={false} />
+                        <YAxis stroke="#6B6B6B" fontSize={10} tickLine={false} />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-paper border border-line p-3 rounded-lg shadow-md text-xs font-semibold">
+                                  <p className="text-muted mb-1">{label}</p>
+                                  {payload.map((p, idx) => (
+                                    <p key={idx} className="text-ink">
+                                      <span className="font-bold">{graphName}:</span> {graphKey === 'revenue' ? formatCurrency(p.value) : graphKey === 'conversion' ? `${p.value}%` : p.value}
+                                    </p>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Line type="monotone" dataKey={graphKey} name={graphName} stroke={graphStroke} strokeWidth={2.5} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
             </div>
           )}
 
@@ -745,7 +798,7 @@ export default function AdminDashboard() {
 }
 
 // Sparkline Card sub-component
-function KPISparkCard({ title, value, change, sparklineData, type, icon: Icon }) {
+function KPISparkCard({ title, value, change, sparklineData, type, icon: Icon, onClick }) {
   const isPositive = change >= 0;
   
   const themes = {
@@ -758,13 +811,13 @@ function KPISparkCard({ title, value, change, sparklineData, type, icon: Icon })
   const chartData = (sparklineData || []).map((val, idx) => ({ idx, val }));
 
   return (
-    <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs transition-transform duration-200 hover:-translate-y-0.5">
+    <div onClick={onClick} className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
       <div className="space-y-1.5 flex-1 min-w-0 pr-2">
         <div className="flex items-center gap-2">
           <div className={`p-1.5 rounded-lg ${themes.bg} ${themes.text} shrink-0`}>
             <Icon className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-bold text-muted uppercase tracking-wider truncate">{title}</span>
+          <span className="text-[10px] font-bold text-muted tracking-wider truncate">{title}</span>
         </div>
         <div className="text-2xl font-black text-ink tracking-tight">{value}</div>
         <div className="flex items-center gap-1 text-[10px] font-bold">

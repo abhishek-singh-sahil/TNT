@@ -228,9 +228,20 @@ export default function AdminOrders() {
       toast.error('Please select a different status');
       return;
     }
+
+    if (newStatus === 'SHIPPED' && (!courierPartner || !trackingNumber)) {
+      toast.error('Both Courier Partner and Tracking Number are required for shipping');
+      return;
+    }
+
     setUpdatingStatus(true);
     try {
-      const r = await adminApi.updateOrderStatus(selectedOrder.id, newStatus);
+      const payload = { status: newStatus };
+      if (newStatus === 'SHIPPED') {
+        payload.courierPartner = courierPartner;
+        payload.trackingNumber = trackingNumber;
+      }
+      const r = await adminApi.updateOrderStatus(selectedOrder.id, payload);
       if (r.success) {
         toast.success('Order status updated! Customer notified by email.');
         fetchOrders(false);
@@ -694,54 +705,178 @@ export default function AdminOrders() {
       )}
 
       {/* ── Print Invoice Layout ─────────────────────────────────────────── */}
-      {detailOrder && (
-        <div className="hidden print:block p-8 text-xs text-ink">
-          <div className="text-center border-b-2 border-ink pb-4 mb-6">
-            <div className="text-2xl font-black tracking-tighter">TNT LUXURY STREETWEAR</div>
-            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Tax Invoice</div>
-          </div>
-          <div className="flex justify-between mb-6">
-            <div>
-              <div className="font-bold text-[10px] uppercase text-gray-500 mb-1">Order</div>
-              <div className="font-black text-base">#{detailOrder.orderNumber}</div>
-              <div className="text-gray-500">{fmtDateTime(detailOrder.createdAt)}</div>
+      {detailOrder && (() => {
+        const isDelhi = (detailOrder.address?.state || '').toLowerCase().includes('delhi');
+        const gstRate = 5;
+        const subtotal = detailOrder.subtotal || 0;
+        const discount = detailOrder.discountAmount || 0;
+        const shipping = detailOrder.shippingFee || 0;
+        const grandTotal = detailOrder.totalAmount || 0;
+        
+        const taxableSubtotal = Math.round((subtotal - discount) / (1 + (gstRate / 100)) * 100) / 100;
+        const totalTax = Math.round((subtotal - discount - taxableSubtotal) * 100) / 100;
+        
+        const cgst = isDelhi ? Math.round((totalTax / 2) * 100) / 100 : 0;
+        const sgst = isDelhi ? Math.round((totalTax / 2) * 100) / 100 : 0;
+        const igst = !isDelhi ? totalTax : 0;
+
+        const numberToWords = (num) => {
+          const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+          const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+          const convert = (n) => {
+            if (n < 20) return a[n];
+            if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+            if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+            if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+            if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+            return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+          };
+          const rounded = Math.round(num);
+          if (rounded === 0) return 'Zero';
+          return convert(rounded) + ' Rupees Only';
+        };
+
+        return (
+          <div className="hidden print:block p-4 text-[10px] text-ink font-sans leading-normal max-w-4xl mx-auto border border-line">
+            {/* Header */}
+            <div className="text-center border-b border-line pb-2 mb-3">
+              <h2 className="text-sm font-black tracking-widest uppercase">TAX INVOICE</h2>
+              <p className="text-[8px] text-muted italic">Issued in compliance with GST Rules in India</p>
             </div>
-            <div className="text-right">
-              <div className="font-bold text-[10px] uppercase text-gray-500 mb-1">Customer</div>
-              <div className="font-bold">{detailOrder.user?.firstName} {detailOrder.user?.lastName}</div>
-              <div className="text-gray-500">{detailOrder.user?.email}</div>
-              <div className="text-gray-500">{detailOrder.user?.phone}</div>
+
+            {/* Seller & Invoice Details */}
+            <div className="grid grid-cols-2 gap-4 border-b border-line pb-3 mb-3">
+              <div>
+                <h3 className="font-extrabold text-xs text-ink uppercase">THREAD & TONES PRIVATE LIMITED</h3>
+                <p className="text-muted text-[9px] mt-0.5">123 Business Park, Okhla Phase 3</p>
+                <p className="text-muted text-[9px]">New Delhi, Delhi, India - 110020</p>
+                <p className="font-bold text-ink mt-1">GSTIN: 07AAACT0000A1Z1</p>
+                <p className="text-muted">State: Delhi | State Code: 07</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-[9px] text-muted uppercase">Invoice Details</p>
+                <p className="font-black text-xs text-ink mt-0.5">Invoice No: #{detailOrder.orderNumber}</p>
+                <p className="text-muted">Date: {fmtDateTime(detailOrder.createdAt)}</p>
+                <p className="font-bold text-ink">Place of Supply: {detailOrder.address?.state || 'Delhi'}</p>
+                <p className="text-muted">Payment: {detailOrder.payment?.paymentMethod || 'COD'} ({detailOrder.paymentStatus})</p>
+              </div>
             </div>
-          </div>
-          {detailOrder.address && (
-            <div className="mb-6 p-3 border border-gray-200 rounded-lg">
-              <div className="font-bold text-[10px] uppercase text-gray-500 mb-1">Shipping To</div>
-              <div>{detailOrder.address.fullName}</div>
-              <div className="text-gray-500">{detailOrder.address.street}{detailOrder.address.locality ? `, ${detailOrder.address.locality}` : ''}, {detailOrder.address.city}, {detailOrder.address.state} - {detailOrder.address.postalCode}</div>
+
+            {/* Billing & Shipping Address */}
+            <div className="grid grid-cols-2 gap-4 border-b border-line pb-3 mb-3">
+              <div className="border-r border-line pr-2">
+                <h4 className="font-extrabold text-[9px] text-muted uppercase mb-1">Bill To (Buyer)</h4>
+                <p className="font-bold text-ink">{detailOrder.user?.firstName} {detailOrder.user?.lastName}</p>
+                <p className="text-muted">{detailOrder.user?.email}</p>
+                <p className="text-muted">{detailOrder.user?.phone}</p>
+              </div>
+              <div>
+                <h4 className="font-extrabold text-[9px] text-muted uppercase mb-1">Ship To (Recipient)</h4>
+                {detailOrder.address ? (
+                  <>
+                    <p className="font-bold text-ink">{detailOrder.address.fullName}</p>
+                    <p className="text-muted">{detailOrder.address.street}</p>
+                    {detailOrder.address.locality && <p className="text-muted">{detailOrder.address.locality}</p>}
+                    <p className="text-muted">{detailOrder.address.city}, {detailOrder.address.state} - {detailOrder.address.postalCode}</p>
+                    <p className="text-muted">Phone: {detailOrder.address.phone}</p>
+                  </>
+                ) : (
+                  <p className="italic text-muted">No shipping address recorded</p>
+                )}
+              </div>
             </div>
-          )}
-          <table className="w-full mb-4 border-collapse">
-            <thead><tr className="border-b-2 border-ink"><th className="py-2 text-left font-black text-[10px] uppercase">Item</th><th className="py-2 text-right font-black text-[10px] uppercase">Qty</th><th className="py-2 text-right font-black text-[10px] uppercase">Price</th><th className="py-2 text-right font-black text-[10px] uppercase">Total</th></tr></thead>
-            <tbody>
-              {detailOrder.items?.map(item => (
-                <tr key={item.id} className="border-b border-gray-200">
-                  <td className="py-2"><div className="font-semibold">{item.productName}</div><div className="text-gray-500">{item.variantInfo}</div></td>
-                  <td className="py-2 text-right">{item.quantity}</td>
-                  <td className="py-2 text-right">{fmtC(item.price)}</td>
-                  <td className="py-2 text-right font-bold">{fmtC(item.totalPrice)}</td>
+
+            {/* Items Table */}
+            <table className="w-full mb-3 border-collapse text-[9px]">
+              <thead>
+                <tr className="border-b border-ink bg-stone/50 font-bold uppercase">
+                  <th className="py-1.5 px-2 text-left w-6">S.No</th>
+                  <th className="py-1.5 px-2 text-left">Description of Goods</th>
+                  <th className="py-1.5 px-2 text-center">HSN Code</th>
+                  <th className="py-1.5 px-2 text-right">Qty</th>
+                  <th className="py-1.5 px-2 text-right">Unit Price</th>
+                  <th className="py-1.5 px-2 text-right">CGST (2.5%)</th>
+                  <th className="py-1.5 px-2 text-right">SGST (2.5%)</th>
+                  <th className="py-1.5 px-2 text-right">IGST (5%)</th>
+                  <th className="py-1.5 px-2 text-right">Total Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="ml-auto w-64 space-y-1 text-xs">
-            <div className="flex justify-between"><span>Subtotal</span><span>{fmtC(detailOrder.subtotal)}</span></div>
-            <div className="flex justify-between"><span>Shipping</span><span>{fmtC(detailOrder.shippingFee)}</span></div>
-            <div className="flex justify-between"><span>Tax</span><span>{fmtC(detailOrder.taxAmount)}</span></div>
-            {detailOrder.discountAmount > 0 && <div className="flex justify-between text-green-700"><span>Discount</span><span>- {fmtC(detailOrder.discountAmount)}</span></div>}
-            <div className="flex justify-between font-black border-t border-ink pt-1 mt-1 text-sm"><span>Total</span><span>{fmtC(detailOrder.totalAmount)}</span></div>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {detailOrder.items?.map((item, idx) => {
+                  const itemPrice = item.price || 0;
+                  const itemTotal = item.totalPrice || 0;
+                  const itemDiscountRatio = discount > 0 ? (itemTotal / subtotal) * discount : 0;
+                  const itemTaxable = Math.round((itemTotal - itemDiscountRatio) / (1 + (gstRate / 100)) * 100) / 100;
+                  const itemTax = Math.round((itemTotal - itemDiscountRatio - itemTaxable) * 100) / 100;
+                  
+                  const itemCgst = isDelhi ? Math.round((itemTax / 2) * 100) / 100 : 0;
+                  const itemSgst = isDelhi ? Math.round((itemTax / 2) * 100) / 100 : 0;
+                  const itemIgst = !isDelhi ? itemTax : 0;
+
+                  return (
+                    <tr key={item.id}>
+                      <td className="py-1.5 px-2 text-left">{idx + 1}</td>
+                      <td className="py-1.5 px-2 font-semibold">
+                        {item.productName}
+                        <span className="text-muted block text-[8px]">{item.variantInfo}</span>
+                      </td>
+                      <td className="py-1.5 px-2 text-center text-muted">61091000</td>
+                      <td className="py-1.5 px-2 text-right">{item.quantity}</td>
+                      <td className="py-1.5 px-2 text-right">₹{itemPrice.toLocaleString()}</td>
+                      <td className="py-1.5 px-2 text-right text-muted">₹{itemCgst.toLocaleString()}</td>
+                      <td className="py-1.5 px-2 text-right text-muted">₹{itemSgst.toLocaleString()}</td>
+                      <td className="py-1.5 px-2 text-right text-muted">₹{itemIgst.toLocaleString()}</td>
+                      <td className="py-1.5 px-2 text-right font-bold">₹{itemTotal.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Calculations Blocks */}
+            <div className="grid grid-cols-2 gap-4 items-start pt-2">
+              <div className="border border-line rounded p-2.5 space-y-1">
+                <span className="text-[8px] font-bold text-muted uppercase block">Amount in Words</span>
+                <span className="font-extrabold text-ink block leading-snug">{numberToWords(grandTotal)}</span>
+                
+                <div className="pt-2 border-t border-line mt-2 text-[8px] text-muted space-y-0.5">
+                  <p className="font-bold text-ink">Terms & Conditions:</p>
+                  <p>1. Goods once sold will not be taken back without approval registry.</p>
+                  <p>2. Subject to New Delhi jurisdiction only.</p>
+                </div>
+              </div>
+              <div className="space-y-1.5 text-right font-medium pr-1">
+                <div className="flex justify-between text-muted"><span>Taxable Value</span><span>₹{taxableSubtotal.toLocaleString()}</span></div>
+                {isDelhi ? (
+                  <>
+                    <div className="flex justify-between text-muted"><span>Central Tax (CGST 2.5%)</span><span>₹{cgst.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-muted"><span>State Tax (SGST 2.5%)</span><span>₹{sgst.toLocaleString()}</span></div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-muted"><span>Integrated Tax (IGST 5.0%)</span><span>₹{igst.toLocaleString()}</span></div>
+                )}
+                {discount > 0 && <div className="flex justify-between text-green-600 font-bold"><span>Discount (Coupon)</span><span>- ₹{discount.toLocaleString()}</span></div>}
+                <div className="flex justify-between text-muted"><span>Shipping Charge</span><span>₹{shipping.toLocaleString()}</span></div>
+                <div className="flex justify-between font-black border-t border-ink pt-1.5 mt-1.5 text-xs text-ink">
+                  <span>Grand Total</span>
+                  <span>₹{grandTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Signature Block */}
+            <div className="flex justify-between items-end pt-8 mt-4 border-t border-dashed border-line">
+              <div className="text-[7px] text-muted max-w-sm">
+                Declaration: We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+              </div>
+              <div className="text-center w-48 border-t border-line pt-1 text-[8px] font-bold">
+                <p className="text-[7px] text-muted mb-6 uppercase">For Thread & Tones Pvt Ltd</p>
+                Authorized Signatory
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -850,28 +985,32 @@ function OrderDetailContent({ order, newStatus, setNewStatus, allowedNext, updat
       </div>
 
       {/* Tracking Info */}
-      {order.tracking && (
-        <div className="px-5 py-4 border-b border-line">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] font-black uppercase tracking-wider text-muted flex items-center gap-1.5"><Barcode className="w-3 h-3" /> Tracking</div>
-            <button onClick={() => setShowTrackingForm(!showTrackingForm)} className="text-[10px] font-bold text-ink border border-line rounded px-2 py-0.5 hover:bg-stone transition-colors">
-              {showTrackingForm ? 'Cancel' : <><Edit2 className="w-2.5 h-2.5 inline mr-1" />Edit</>}
-            </button>
-          </div>
-          {!showTrackingForm ? (
-            <div className="text-xs space-y-0.5 text-muted">
-              <div>Courier: <span className="font-semibold text-ink">{order.tracking.courierPartner || '—'}</span></div>
-              <div>Tracking #: <span className="font-mono font-bold text-ink">{order.tracking.trackingNumber || '—'}</span></div>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-2">
-              <input value={courierPartner} onChange={e => setCourierPartner(e.target.value)} placeholder="Courier partner..." className="w-full border border-line rounded-lg px-3 py-2 text-xs text-ink bg-stone focus:outline-none" />
-              <input value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="Tracking number..." className="w-full border border-line rounded-lg px-3 py-2 text-xs text-ink bg-stone focus:outline-none" />
-              <button onClick={handleUpdateTracking} className="w-full py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90">Save Tracking</button>
-            </div>
-          )}
+      <div className="px-5 py-4 border-b border-line">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[10px] font-black uppercase tracking-wider text-muted flex items-center gap-1.5"><Barcode className="w-3 h-3" /> Tracking Details</div>
+          <button onClick={() => setShowTrackingForm(!showTrackingForm)} className="text-[10px] font-bold text-ink border border-line rounded px-2 py-0.5 hover:bg-stone transition-colors">
+            {showTrackingForm ? 'Cancel' : <><Edit2 className="w-2.5 h-2.5 inline mr-1" />{order.tracking ? 'Edit' : 'Add'}</>}
+          </button>
         </div>
-      )}
+        {!showTrackingForm ? (
+          <div className="text-xs space-y-0.5 text-muted">
+            {order.tracking ? (
+              <>
+                <div>Courier: <span className="font-semibold text-ink">{order.tracking.courierPartner || '—'}</span></div>
+                <div>Tracking #: <span className="font-mono font-bold text-ink">{order.tracking.trackingNumber || '—'}</span></div>
+              </>
+            ) : (
+              <span className="italic">No tracking details registered for this package.</span>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2 mt-2">
+            <input value={courierPartner} onChange={e => setCourierPartner(e.target.value)} placeholder="Courier partner (e.g. Delhivery)..." className="w-full border border-line rounded-lg px-3 py-2 text-xs text-ink bg-stone focus:outline-none" />
+            <input value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="Tracking number..." className="w-full border border-line rounded-lg px-3 py-2 text-xs text-ink bg-stone focus:outline-none" />
+            <button onClick={handleUpdateTracking} className="w-full py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90">Save Tracking</button>
+          </div>
+        )}
+      </div>
 
       {/* Timeline */}
       {timeline.length > 0 && (
@@ -902,25 +1041,46 @@ function OrderDetailContent({ order, newStatus, setNewStatus, allowedNext, updat
         {allowedNext.length === 0 ? (
           <p className="text-[11px] text-muted italic">No status transitions available from current state.</p>
         ) : (
-          <div className="flex gap-2">
-            <select
-              value={newStatus}
-              onChange={e => setNewStatus(e.target.value)}
-              className="flex-1 bg-stone border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none"
-            >
-              <option value={order.orderStatus}>{ORDER_STATUS_CONFIG[order.orderStatus]?.label || order.orderStatus} (current)</option>
-              {allowedNext.map(s => (
-                <option key={s} value={s}>{ORDER_STATUS_CONFIG[s]?.label || s}</option>
-              ))}
-            </select>
-            <button
-              disabled={updatingStatus || newStatus === order.orderStatus}
-              onClick={handleUpdateStatus}
-              className="px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
-            >
-              {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-              Update
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <select
+                value={newStatus}
+                onChange={e => setNewStatus(e.target.value)}
+                className="flex-1 bg-stone border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none"
+              >
+                <option value={order.orderStatus}>{ORDER_STATUS_CONFIG[order.orderStatus]?.label || order.orderStatus} (current)</option>
+                {allowedNext.map(s => (
+                  <option key={s} value={s}>{ORDER_STATUS_CONFIG[s]?.label || s}</option>
+                ))}
+              </select>
+              <button
+                disabled={updatingStatus || newStatus === order.orderStatus}
+                onClick={handleUpdateStatus}
+                className="px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
+              >
+                {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                Update
+              </button>
+            </div>
+            {newStatus === 'SHIPPED' && (
+              <div className="space-y-2 p-3 border border-line bg-stone/20 rounded-lg animate-fadeIn">
+                <div className="text-[9px] font-bold text-muted uppercase">Courier Info Required for Shipping</div>
+                <input
+                  required
+                  value={courierPartner}
+                  onChange={e => setCourierPartner(e.target.value)}
+                  placeholder="Courier Partner (e.g. Delhivery, Bluedart)"
+                  className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
+                />
+                <input
+                  required
+                  value={trackingNumber}
+                  onChange={e => setTrackingNumber(e.target.value)}
+                  placeholder="Tracking Number"
+                  className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
+                />
+              </div>
+            )}
           </div>
         )}
         {canCancel && (

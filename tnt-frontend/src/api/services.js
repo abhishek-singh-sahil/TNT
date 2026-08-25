@@ -39,6 +39,7 @@ export const orderApi = {
   getMyOrders: () => apiClient.get('/orders/my-orders'),
   getOrderTracking: (orderId) => apiClient.get(`/orders/track/${orderId}`),
   createReturnRequest: (id, payload) => apiClient.post(`/orders/${id}/returns`, payload),
+  cancelOrder: (id) => apiClient.post(`/orders/${id}/cancel`),
 };
 
 
@@ -139,6 +140,7 @@ export const adminApi = {
   updateCollection: (id, payload) => apiClient.put(`/admin/collections/${id}`, payload),
   deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
   restockVariant: (payload) => apiClient.post('/admin/inventory/restock', payload),
+  getNotifications: () => apiClient.get('/admin/notifications'),
 };
 
 export const marketingApi = {

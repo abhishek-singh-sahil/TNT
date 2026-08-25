@@ -186,7 +186,26 @@ export const createOrder = async (req, res) => {
 
       const finalShippingFee = calculatedShippingFee;
       const totalAmount = subtotal - discountAmount + finalShippingFee + codCharge;
-      const orderNumber = `TNT${Math.floor(10000 + Math.random() * 90000)}`;
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const ddmmyy = `${day}${month}${year}`;
+
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+      const countToday = await tx.order.count({
+        where: {
+          createdAt: {
+            gte: startOfToday,
+            lte: endOfToday
+          }
+        }
+      });
+
+      const serialNum = String(countToday + 1).padStart(3, '0');
+      const orderNumber = `TNT${ddmmyy}${serialNum}`;
 
       // Create Order
       const newOrder = await tx.order.create({
@@ -208,16 +227,6 @@ export const createOrder = async (req, res) => {
               transactionId: verifiedTransactionId,
               amount: totalAmount,
               status: initialPaymentStatus,
-            },
-          },
-          tracking: {
-            create: {
-              courierPartner: 'Delhivery',
-              trackingNumber: `${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
-              currentStatus: OrderStatus.CONFIRMED,
-              logs: JSON.stringify([
-                { status: 'Order Confirmed', time: new Date().toLocaleString() },
-              ]),
             },
           },
         },
@@ -380,12 +389,57 @@ export const createReturnRequest = async (req, res) => {
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { orderStatus: 'RETURNED' }
+      data: { orderStatus: 'RETURN_REQUESTED' }
     });
 
     return res.json({ success: true, message: 'Return request submitted successfully!', newReturn });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to create return request', error: error.message });
+  }
+};
+
+export const cancelOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.userId !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized action' });
+    }
+
+    const allowedCancel = ['PENDING', 'CONFIRMED', 'PACKED'];
+    if (!allowedCancel.includes(order.orderStatus)) {
+      return res.status(400).json({ success: false, message: 'Order cannot be cancelled after it has been shipped.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Replenish stock
+      for (const item of order.items) {
+        await tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stock: { increment: item.quantity } }
+        });
+      }
+
+      // Update status to CANCELLED
+      await tx.order.update({
+        where: { id: order.id },
+        data: { orderStatus: 'CANCELLED' }
+      });
+    });
+
+    return res.json({ success: true, message: 'Order cancelled successfully and inventory replenished.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to cancel order', error: error.message });
   }
 };
 

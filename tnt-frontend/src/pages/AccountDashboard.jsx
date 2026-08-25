@@ -407,34 +407,81 @@ export default function AccountDashboard() {
     </div>
   );
 
-  const renderReturnsView = () => (
-    <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
-      {renderBackHeader("Returns & Refunds")}
-      <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Returns & Exchanges</h3>
-      
-      <div className="space-y-4">
-        {orders.filter(o => o.orderStatus === 'DELIVERED').map(o => (
-          <div key={o.id} className="p-4 border border-line rounded bg-stone/20 flex justify-between items-center">
-            <div>
-              <p className="text-xs font-bold text-ink">Order #{o.orderNumber}</p>
-              <p className="text-[11px] text-muted">Delivered on {new Date(o.updatedAt).toLocaleDateString()}</p>
-            </div>
-            <Link
-              to={`/account/orders/${o.orderNumber}/track`}
-              className="px-3 py-1.5 bg-ink text-paper text-xs font-bold uppercase rounded hover:bg-ink/90"
-            >
-              Initiate Return
-            </Link>
-          </div>
-        ))}
+  const renderReturnsView = () => {
+    const eligibleOrders = orders.filter(o => o.orderStatus === 'DELIVERED');
+    const returnHistory = orders.filter(o => ['RETURNED', 'RETURN_REQUESTED', 'RETURN_STARTED', 'RETURNED_AND_REFUNDED'].includes(o.orderStatus));
 
-        <div className="text-center py-12 border border-line rounded bg-stone/10 text-muted">
-          <AlertTriangle className="w-8 h-8 mx-auto text-muted/60 mb-2" />
-          <p className="text-xs">No active return or exchange tickets filed.</p>
+    return (
+      <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
+        {renderBackHeader("Returns & Refunds")}
+        <h3 className="hidden lg:block text-sm font-black uppercase text-ink tracking-wider border-b border-line pb-3">Returns & Exchanges</h3>
+        
+        <div className="space-y-6">
+          <div>
+            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Eligible for Return</h4>
+            <div className="space-y-3">
+              {eligibleOrders.map(o => (
+                <div key={o.id} className="p-4 border border-line rounded bg-stone/20 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs font-bold text-ink">Order #{o.orderNumber}</p>
+                    <p className="text-[11px] text-muted">Delivered on {new Date(o.updatedAt).toLocaleDateString()}</p>
+                  </div>
+                  <Link
+                    to={`/account/orders/${o.orderNumber}/track`}
+                    className="px-3 py-1.5 bg-ink text-paper text-xs font-bold uppercase rounded hover:bg-ink/90"
+                  >
+                    Initiate Return
+                  </Link>
+                </div>
+              ))}
+              {eligibleOrders.length === 0 && (
+                <p className="text-xs text-muted italic">No orders currently eligible for return.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-line">
+            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Return History & Status</h4>
+            <div className="space-y-3">
+              {returnHistory.map(o => {
+                let badgeCls = "bg-amber-50 text-amber-700 border-amber-200";
+                let badgeText = "Return Pending";
+                if (o.orderStatus === 'RETURN_STARTED') {
+                  badgeCls = "bg-indigo-50 text-indigo-700 border-indigo-200";
+                  badgeText = "Return Started";
+                } else if (o.orderStatus === 'RETURNED_AND_REFUNDED') {
+                  badgeCls = "bg-green-50 text-green-700 border-green-200";
+                  badgeText = "Returned & Refunded";
+                }
+                return (
+                  <div key={o.id} className="p-4 border border-line rounded flex justify-between items-center">
+                    <div>
+                      <p className="text-xs font-bold text-ink">Order #{o.orderNumber}</p>
+                      <p className="text-[11px] text-muted">Status updated: {new Date(o.updatedAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded border uppercase ${badgeCls}`}>
+                        {badgeText}
+                      </span>
+                      <Link
+                        to={`/account/orders/${o.orderNumber}/track`}
+                        className="text-xs font-bold text-ink underline"
+                      >
+                        Details
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+              {returnHistory.length === 0 && (
+                <p className="text-xs text-muted italic">No return tickets filed yet.</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderRewardsView = () => (
     <div className="bg-paper border border-line rounded-lg p-6 space-y-6 animate-fadeIn">
@@ -1180,7 +1227,7 @@ export default function AccountDashboard() {
   };
 
   return (
-    <div className="bg-paper min-h-screen pt-4 pb-16">
+    <div className={`bg-paper min-h-screen pt-4 pb-16 ${printingOrder ? 'print:hidden' : ''}`}>
       <div className="max-w-container mx-auto px-4 lg:px-8">
         {isMobile ? (
           // Mobile responsive: either Shein Menu or Selected subview full width
@@ -1348,121 +1395,255 @@ export default function AccountDashboard() {
       )}
 
       {/* Printable Invoice Overlay Modal */}
-      {printingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:relative print:bg-transparent print:p-0 print:z-0 print:border-none print:shadow-none">
-          <div className="bg-paper border border-line rounded-xl p-6 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto print:border-none print:shadow-none print:p-0 print:max-h-none print:overflow-visible print:bg-white print:text-black">
-            
-            {/* Modal Header Controls (Hidden during print) */}
-            <div className="flex justify-between items-center border-b border-line pb-3 print:hidden">
-              <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Purchase Invoice</span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-ink text-paper text-[10px] font-bold rounded uppercase hover:bg-ink/90"
-                >
-                  Print Bill
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPrintingOrder(null)}
-                  className="px-3 py-1.5 border border-line text-[10px] font-bold rounded text-ink uppercase hover:bg-stone"
-                >
-                  Close
-                </button>
+      {printingOrder && (() => {
+        const isDelhi = (printingOrder.address?.state || '').toLowerCase().includes('delhi');
+        const gstRate = 5;
+        const subtotal = printingOrder.subtotal || 0;
+        const discount = printingOrder.discountAmount || 0;
+        const shipping = printingOrder.shippingFee || 0;
+        const grandTotal = printingOrder.totalAmount || 0;
+        
+        const taxableSubtotal = Math.round((subtotal - discount) / (1 + (gstRate / 100)) * 100) / 100;
+        const totalTax = Math.round((subtotal - discount - taxableSubtotal) * 100) / 100;
+        
+        const cgst = isDelhi ? Math.round((totalTax / 2) * 100) / 100 : 0;
+        const sgst = isDelhi ? Math.round((totalTax / 2) * 100) / 100 : 0;
+        const igst = !isDelhi ? totalTax : 0;
+
+        const numberToWords = (num) => {
+          const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+          const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+          const convert = (n) => {
+            if (n < 20) return a[n];
+            if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+            if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+            if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+            if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+            return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+          };
+          const rounded = Math.round(num);
+          if (rounded === 0) return 'Zero';
+          return convert(rounded) + ' Rupees Only';
+        };
+
+        return (
+          <>
+            {/* Screen Overlay (Hidden during print) */}
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden">
+              <div className="bg-paper border border-line rounded-xl p-6 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center border-b border-line pb-3">
+                  <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Purchase Invoice</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-3 py-1.5 bg-ink text-paper text-[10px] font-bold rounded uppercase hover:bg-ink/90"
+                    >
+                      Print Bill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrintingOrder(null)}
+                      className="px-3 py-1.5 border border-line text-[10px] font-bold rounded text-ink uppercase hover:bg-stone"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Visual Invoice Preview on Screen */}
+                <div className="space-y-4 text-xs">
+                  <div className="text-center border-b-2 border-line pb-4">
+                    <h2 className="text-lg font-black uppercase text-ink tracking-tight">THREAD & TONES</h2>
+                    <p className="text-[10px] text-muted font-bold uppercase">Official Buyer Purchase Receipt</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[9px] font-bold text-muted uppercase block">ORDER NUMBER</span>
+                      <span className="font-extrabold text-ink">#{printingOrder.orderNumber}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] font-bold text-muted uppercase block">ORDER DATE</span>
+                      <span className="font-semibold text-ink">{new Date(printingOrder.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="border border-line rounded-lg overflow-hidden">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-stone font-bold uppercase text-ink border-b border-line">
+                        <tr>
+                          <th className="p-3">Item Description</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-right">Price</th>
+                          <th className="p-3 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {printingOrder.items?.map((item) => (
+                          <tr key={item.id}>
+                            <td className="p-3 font-semibold text-ink">{item.productName}</td>
+                            <td className="p-3 text-center text-muted font-medium">{item.quantity}</td>
+                            <td className="p-3 text-right text-muted font-medium">₹{(item.price || 0).toLocaleString()}</td>
+                            <td className="p-3 text-right text-ink font-bold">₹{((item.price || 0) * item.quantity).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="text-right space-y-1 pr-2">
+                    <div className="flex justify-between text-muted"><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
+                    {discount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>- ₹{discount.toLocaleString()}</span></div>}
+                    <div className="flex justify-between text-muted"><span>Shipping</span><span>₹{shipping.toLocaleString()}</span></div>
+                    <div className="flex justify-between font-black border-t border-line pt-2 mt-2 text-sm text-ink">
+                      <span>Total Amount</span>
+                      <span>₹{grandTotal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Bill Info Grid */}
-            <div className="space-y-4">
-              <div className="text-center border-b-2 border-line pb-4">
-                <h2 className="text-xl font-black uppercase text-ink tracking-tight">THREAD & TONES</h2>
-                <p className="text-[10px] text-muted font-bold uppercase">Official Buyer Purchase Receipt</p>
+            {/* Actual Print Invoice Layout (Only visible in Print Mode) */}
+            <div className="hidden print:block p-4 text-[10px] text-ink font-sans leading-normal max-w-4xl mx-auto border border-line bg-white">
+              {/* Header */}
+              <div className="text-center border-b border-line pb-2 mb-3">
+                <h2 className="text-sm font-black tracking-widest uppercase">TAX INVOICE</h2>
+                <p className="text-[8px] text-muted italic">Issued in compliance with GST Rules in India</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs">
+              {/* Seller & Invoice Details */}
+              <div className="grid grid-cols-2 gap-4 border-b border-line pb-3 mb-3">
                 <div>
-                  <span className="text-[9px] font-bold text-muted uppercase block">ORDER NUMBER</span>
-                  <span className="font-extrabold text-ink">#{printingOrder.orderNumber}</span>
+                  <h3 className="font-extrabold text-xs text-ink uppercase">THREAD & TONES PRIVATE LIMITED</h3>
+                  <p className="text-muted text-[9px] mt-0.5">123 Business Park, Okhla Phase 3</p>
+                  <p className="text-muted text-[9px]">New Delhi, Delhi, India - 110020</p>
+                  <p className="font-bold text-ink mt-1">GSTIN: 07AAACT0000A1Z1</p>
+                  <p className="text-muted">State: Delhi | State Code: 07</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] font-bold text-muted uppercase block">ORDER DATE</span>
-                  <span className="font-semibold text-ink">{new Date(printingOrder.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-muted uppercase block">BILL TO</span>
-                  <span className="font-extrabold text-ink">{user?.firstName} {user?.lastName || ''}</span>
-                  <span className="text-muted block text-[10px]">{user?.email}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[9px] font-bold text-muted uppercase block">PAYMENT METHOD</span>
-                  <span className="font-extrabold text-ink uppercase">{printingOrder.payment?.paymentMethod || 'Razorpay / Online'}</span>
-                  <span className="text-muted block text-[10px]">Status: {printingOrder.paymentStatus}</span>
+                  <p className="font-bold text-[9px] text-muted uppercase">Invoice Details</p>
+                  <p className="font-black text-xs text-ink mt-0.5">Invoice No: #{printingOrder.orderNumber}</p>
+                  <p className="text-muted">Date: {new Date(printingOrder.createdAt).toLocaleString('en-IN')}</p>
+                  <p className="font-bold text-ink">Place of Supply: {printingOrder.address?.state || 'Delhi'}</p>
+                  <p className="text-muted">Payment: {printingOrder.payment?.paymentMethod || 'COD'} ({printingOrder.paymentStatus})</p>
                 </div>
               </div>
 
-              {/* Items List Table */}
-              <div className="border border-line rounded-lg overflow-hidden mt-4">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead className="bg-stone font-bold uppercase text-ink border-b border-line">
-                    <tr>
-                      <th className="p-3">Item Description</th>
-                      <th className="p-3 text-center">Qty</th>
-                      <th className="p-3 text-right">Price</th>
-                      <th className="p-3 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {printingOrder.items?.map((item) => (
+              {/* Billing & Shipping Address */}
+              <div className="grid grid-cols-2 gap-4 border-b border-line pb-3 mb-3">
+                <div className="border-r border-line pr-2">
+                  <h4 className="font-extrabold text-[9px] text-muted uppercase mb-1">Bill To (Buyer)</h4>
+                  <p className="font-bold text-ink">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-muted">{user?.email}</p>
+                  <p className="text-muted">{user?.phone}</p>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-[9px] text-muted uppercase mb-1">Ship To (Recipient)</h4>
+                  {printingOrder.address ? (
+                    <>
+                      <p className="font-bold text-ink">{printingOrder.address.fullName}</p>
+                      <p className="text-muted">{printingOrder.address.street}</p>
+                      {printingOrder.address.locality && <p className="text-muted">{printingOrder.address.locality}</p>}
+                      <p className="text-muted">{printingOrder.address.city}, {printingOrder.address.state} - {printingOrder.address.postalCode}</p>
+                      <p className="text-muted">Phone: {printingOrder.address.phone}</p>
+                    </>
+                  ) : (
+                    <p className="italic text-muted">No shipping address recorded</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <table className="w-full mb-3 border-collapse text-[9px]">
+                <thead>
+                  <tr className="border-b border-ink bg-stone/50 font-bold uppercase">
+                    <th className="py-1.5 px-2 text-left w-6">S.No</th>
+                    <th className="py-1.5 px-2 text-left">Description of Goods</th>
+                    <th className="py-1.5 px-2 text-center">HSN Code</th>
+                    <th className="py-1.5 px-2 text-right">Qty</th>
+                    <th className="py-1.5 px-2 text-right">Unit Price</th>
+                    <th className="py-1.5 px-2 text-right">CGST (2.5%)</th>
+                    <th className="py-1.5 px-2 text-right">SGST (2.5%)</th>
+                    <th className="py-1.5 px-2 text-right">IGST (5%)</th>
+                    <th className="py-1.5 px-2 text-right">Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {printingOrder.items?.map((item, idx) => {
+                    const itemPrice = item.price || 0;
+                    const itemTotal = itemPrice * item.quantity;
+                    const itemDiscountRatio = discount > 0 ? (itemTotal / subtotal) * discount : 0;
+                    const itemTaxable = Math.round((itemTotal - itemDiscountRatio) / (1 + (gstRate / 100)) * 100) / 100;
+                    const itemTax = Math.round((itemTotal - itemDiscountRatio - itemTaxable) * 100) / 100;
+                    
+                    const itemCgst = isDelhi ? Math.round((itemTax / 2) * 100) / 100 : 0;
+                    const itemSgst = isDelhi ? Math.round((itemTax / 2) * 100) / 100 : 0;
+                    const itemIgst = !isDelhi ? itemTax : 0;
+
+                    return (
                       <tr key={item.id}>
-                        <td className="p-3 font-semibold text-ink">{item.productName}</td>
-                        <td className="p-3 text-center text-muted font-medium">{item.quantity}</td>
-                        <td className="p-3 text-right text-muted font-medium">₹{(item.price || 0).toLocaleString()}</td>
-                        <td className="p-3 text-right text-ink font-bold">₹{((item.price || 0) * item.quantity).toLocaleString()}</td>
+                        <td className="py-1.5 px-2 text-left">{idx + 1}</td>
+                        <td className="py-1.5 px-2 font-semibold">
+                          {item.productName}
+                          {item.variantInfo && <span className="text-muted block text-[8px]">{item.variantInfo}</span>}
+                        </td>
+                        <td className="py-1.5 px-2 text-center text-muted">61091000</td>
+                        <td className="py-1.5 px-2 text-right">{item.quantity}</td>
+                        <td className="py-1.5 px-2 text-right">₹{itemPrice.toLocaleString()}</td>
+                        <td className="py-1.5 px-2 text-right text-muted">₹{itemCgst.toLocaleString()}</td>
+                        <td className="py-1.5 px-2 text-right text-muted">₹{itemSgst.toLocaleString()}</td>
+                        <td className="py-1.5 px-2 text-right text-muted">₹{itemIgst.toLocaleString()}</td>
+                        <td className="py-1.5 px-2 text-right font-bold">₹{itemTotal.toLocaleString()}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-line bg-stone/40 font-bold">
-                      <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Subtotal</td>
-                      <td className="p-3 text-right text-ink">₹{(printingOrder.subtotal || printingOrder.items?.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)).toLocaleString()}</td>
-                    </tr>
-                    {printingOrder.discountAmount > 0 && (
-                      <tr className="font-bold text-green-600">
-                        <td colSpan="3" className="p-3 text-right uppercase text-[9px]">Discount {printingOrder.couponCode ? `(${printingOrder.couponCode})` : ''}</td>
-                        <td className="p-3 text-right">-₹{printingOrder.discountAmount.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    {printingOrder.shippingFee > 0 && (
-                      <tr className="font-bold">
-                        <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Shipping Fee</td>
-                        <td className="p-3 text-right text-ink">₹{printingOrder.shippingFee.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    {printingOrder.taxAmount > 0 && (
-                      <tr className="font-bold">
-                        <td colSpan="3" className="p-3 text-right uppercase text-[9px] text-muted">Estimated Tax</td>
-                        <td className="p-3 text-right text-ink">₹{printingOrder.taxAmount.toLocaleString()}</td>
-                      </tr>
-                    )}
-                    <tr className="border-t border-line bg-stone font-black text-sm">
-                      <td colSpan="3" className="p-3 text-right uppercase text-[10px] text-ink">Grand Total Amount</td>
-                      <td className="p-3 text-right text-ink">₹{printingOrder.totalAmount.toLocaleString()}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Calculations Blocks */}
+              <div className="grid grid-cols-2 gap-4 items-start pt-2">
+                <div className="border border-line rounded p-2.5 space-y-1">
+                  <span className="text-[8px] font-bold text-muted uppercase block">Amount in Words</span>
+                  <span className="font-extrabold text-ink block leading-snug">{numberToWords(grandTotal)}</span>
+                  
+                  <div className="pt-2 border-t border-line mt-2 text-[8px] text-muted space-y-0.5">
+                    <p className="font-bold text-ink">Terms & Conditions:</p>
+                    <p>1. Goods once sold will not be taken back without approval registry.</p>
+                    <p>2. Subject to New Delhi jurisdiction only.</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-right font-medium pr-1">
+                  <div className="flex justify-between text-muted"><span>Taxable Value</span><span>₹{taxableSubtotal.toLocaleString()}</span></div>
+                  {isDelhi ? (
+                    <>
+                      <div className="flex justify-between text-muted"><span>Central Tax (CGST 2.5%)</span><span>₹{cgst.toLocaleString()}</span></div>
+                      <div className="flex justify-between text-muted"><span>State Tax (SGST 2.5%)</span><span>₹{sgst.toLocaleString()}</span></div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-muted"><span>Integrated Tax (IGST 5.0%)</span><span>₹{igst.toLocaleString()}</span></div>
+                  )}
+                  {discount > 0 && <div className="flex justify-between text-green-600 font-bold"><span>Discount (Coupon)</span><span>- ₹{discount.toLocaleString()}</span></div>}
+                  <div className="flex justify-between text-muted"><span>Shipping Charge</span><span>₹{shipping.toLocaleString()}</span></div>
+                  <div className="flex justify-between font-black border-t border-ink pt-1.5 mt-1.5 text-xs text-ink">
+                    <span>Grand Total</span>
+                    <span>₹{grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Thank you note */}
-              <div className="text-center pt-6 border-t border-line text-[10px] text-muted space-y-1.5">
-                <p className="font-bold text-ink">Thank you for shopping with THREAD & TONES</p>
-                <p>For questions or assistance regarding your order, contact hello@tntclothing.com</p>
+              {/* Signature Block */}
+              <div className="flex justify-between items-end pt-8 mt-4 border-t border-dashed border-line">
+                <div className="text-[7px] text-muted max-w-sm">
+                  Declaration: We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                </div>
+                <div className="text-center w-48 border-t border-line pt-1 text-[8px] font-bold">
+                  <p className="text-[7px] text-muted mb-6 uppercase">For Thread & Tones Pvt Ltd</p>
+                  Authorized Signatory
+                </div>
               </div>
             </div>
-
-          </div>
-        </div>
-      )}
+          </>
+        );
+      })()}
 
       <div className="mt-16 hidden lg:block">
         <TrustStrip />

@@ -1055,13 +1055,12 @@ export const deleteReviewAdmin = async (req, res) => {
   }
 };
 
-// ── Status tab → DB status mapping ────────────────────────────────────────────
 const TAB_STATUS_MAP = {
   pending:    ['PENDING', 'CONFIRMED'],
   processing: ['PACKED'],
   shipped:    ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'],
   delivered:  ['DELIVERED'],
-  cancelled:  ['CANCELLED', 'RETURNED'],
+  cancelled:  ['CANCELLED', 'RETURNED', 'RETURN_REQUESTED', 'RETURN_STARTED', 'RETURNED_AND_REFUNDED'],
 };
 
 const VALID_TRANSITIONS = {
@@ -1071,7 +1070,10 @@ const VALID_TRANSITIONS = {
   SHIPPED:          ['IN_TRANSIT', 'CANCELLED'],
   IN_TRANSIT:       ['OUT_FOR_DELIVERY', 'CANCELLED'],
   OUT_FOR_DELIVERY: ['DELIVERED'],
-  DELIVERED:        [],
+  DELIVERED:        ['RETURN_REQUESTED'],
+  RETURN_REQUESTED: ['RETURN_STARTED', 'DELIVERED'],
+  RETURN_STARTED:   ['RETURNED_AND_REFUNDED'],
+  RETURNED_AND_REFUNDED: [],
   CANCELLED:        [],
   RETURNED:         [],
 };
@@ -1462,7 +1464,7 @@ export const createOrderAdmin = async (req, res) => {
 export const updateOrderStatusAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, note } = req.body;
+    const { status, note, courierPartner, trackingNumber } = req.body;
 
     // Validate status value
     const validStatuses = Object.keys(VALID_TRANSITIONS);
@@ -1506,16 +1508,21 @@ export const updateOrderStatusAdmin = async (req, res) => {
     }
     logs.push({ status, time: new Date().toLocaleString(), ...(note ? { note } : {}) });
 
+    const trackingUpdate = {
+      currentStatus: status,
+      logs: JSON.stringify(logs),
+      deliveredAt: status === 'DELIVERED' ? new Date() : undefined
+    };
+    if (courierPartner) trackingUpdate.courierPartner = courierPartner;
+    if (trackingNumber) trackingUpdate.trackingNumber = trackingNumber;
+
     await prisma.orderTracking.upsert({
       where: { orderId: id },
-      update: {
-        currentStatus: status,
-        logs: JSON.stringify(logs),
-        deliveredAt: status === 'DELIVERED' ? new Date() : undefined
-      },
+      update: trackingUpdate,
       create: {
         orderId: id,
-        trackingNumber: `TNT-TRK-${Date.now()}`,
+        courierPartner: courierPartner || 'Delhivery',
+        trackingNumber: trackingNumber || `TNT-TRK-${Date.now()}`,
         currentStatus: status,
         logs: JSON.stringify(logs),
         deliveredAt: status === 'DELIVERED' ? new Date() : undefined
@@ -1690,7 +1697,15 @@ export const updateReturnRequestAdmin = async (req, res) => {
       data: { status }
     });
 
-    if (status === 'COMPLETED') {
+    let orderStatusUpdate = null;
+    if (status === 'APPROVED') {
+      orderStatusUpdate = 'RETURN_STARTED';
+    } else if (status === 'REJECTED') {
+      orderStatusUpdate = 'DELIVERED';
+    } else if (status === 'COMPLETED') {
+      orderStatusUpdate = 'RETURNED_AND_REFUNDED';
+
+      // Replenish stock
       for (const item of returnRequest.items) {
         await prisma.productVariant.update({
           where: { id: item.productVariantId },
@@ -1698,17 +1713,29 @@ export const updateReturnRequestAdmin = async (req, res) => {
         });
       }
 
+      // Record refund in DB
       if (returnRequest.order?.payment?.id) {
-        await prisma.refund.create({
-          data: {
+        await prisma.refund.upsert({
+          where: { returnId: returnRequest.id },
+          create: {
             paymentId: returnRequest.order.payment.id,
             returnId: returnRequest.id,
             amount: returnRequest.order.totalAmount,
             status: 'PROCESSED'
+          },
+          update: {
+            status: 'PROCESSED'
           }
+        });
+
+        // Update paymentStatus to REFUNDED
+        await prisma.order.update({
+          where: { id: returnRequest.orderId },
+          data: { paymentStatus: 'REFUNDED' }
         });
       }
 
+      // Send Refund Email
       await sendEmail({
         to: returnRequest.user.email,
         subject: `TNT Refund Processed: Order #${returnRequest.order.orderNumber}`,
@@ -1720,6 +1747,13 @@ export const updateReturnRequestAdmin = async (req, res) => {
             <p>Thank you for shopping with us!</p>
           </div>
         `
+      });
+    }
+
+    if (orderStatusUpdate) {
+      await prisma.order.update({
+        where: { id: returnRequest.orderId },
+        data: { orderStatus: orderStatusUpdate }
       });
     }
 
@@ -3516,5 +3550,30 @@ export const getReportsAdmin = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to generate analytics report', error: error.message });
+  }
+};
+
+export const getInventoryNotifications = async (req, res) => {
+  try {
+    const outOfStockVariants = await prisma.productVariant.findMany({
+      where: { stock: 0 },
+      include: {
+        product: true,
+        color: true,
+        size: true
+      }
+    });
+
+    const notifications = outOfStockVariants.map(v => ({
+      id: v.id,
+      sku: v.sku,
+      title: 'Stock Out of Bounds',
+      message: `SKU ${v.sku} (${v.product.name} - ${v.color.name} | ${v.size.code}) reached 0 quantity.`,
+      actionUrl: `/admin/products?search=${v.sku}`
+    }));
+
+    return res.json({ success: true, notifications });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch inventory notifications', error: error.message });
   }
 };

@@ -5,7 +5,7 @@ import multer from 'multer';
 
 import { register, login, getProfile, logout, updateProfile, verifyOTP, resendOTP, googleLogin } from '../controllers/authController.js';
 import { getProducts, getProductBySlug, createProduct, deleteProduct, getColors, getSizes, createColor, updateProduct, getCollections, createCollection, getCategoriesPublic } from '../controllers/productController.js';
-import { createOrder, getUserOrders, getOrderTracking, createReturnRequest } from '../controllers/orderController.js';
+import { createOrder, getUserOrders, getOrderTracking, createReturnRequest, cancelOrder } from '../controllers/orderController.js';
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../controllers/addressController.js';
 import { getMyReviews, createReview, updateReview, deleteReview } from '../controllers/reviewController.js';
 import { getLookbooks } from '../controllers/lookbookController.js';
@@ -91,7 +91,8 @@ import {
   changePasswordSettings,
   getActiveSessions,
   revokeSession,
-  revokeAllOtherSessions
+  revokeAllOtherSessions,
+  getInventoryNotifications
 } from '../controllers/adminController.js';
 
 import {
@@ -209,6 +210,7 @@ router.post('/orders', protect, checkMaintenanceMode, createOrder);
 router.get('/orders/my-orders', protect, getUserOrders);
 router.get('/orders/track/:orderId', getOrderTracking);
 router.post('/orders/:id/returns', protect, createReturnRequest);
+router.post('/orders/:id/cancel', protect, cancelOrder);
 router.post('/payments/razorpay/create-order', protect, checkMaintenanceMode, createRazorpayOrder);
 router.post('/payments/razorpay/verify', protect, verifyRazorpayPayment);
 
@@ -352,6 +354,7 @@ router.post('/admin/settings/password', protect, changePasswordSettings);
 
 // ─── Dashboard Analytics & Inventory Restocking ───────────────────────────────
 router.get('/admin/dashboard', protect, requirePermission('view_dashboard'), getAdminDashboardData);
+router.get('/admin/notifications', protect, getInventoryNotifications);
 router.get('/admin/reports', protect, requirePermission('view_reports'), getReportsAdmin);
 router.post('/admin/inventory/restock', protect, requirePermission('edit_inventory'), restockInventory);
 

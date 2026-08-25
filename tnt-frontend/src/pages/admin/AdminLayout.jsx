@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutGrid,
@@ -24,6 +24,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { useRBAC } from '../../hooks/useRBAC';
 import { selectSettings } from '../../store/settingsSlice';
+import { adminApi } from '../../api/services';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -41,6 +42,39 @@ export default function AdminLayout() {
     isStaff,
     hasPermission
   } = useRBAC();
+
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await adminApi.getNotifications();
+      if (res.success && res.notifications) {
+        setNotifications(res.notifications);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isStaff) {
+      fetchNotifications();
+      const timer = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(timer);
+    }
+  }, [isStaff]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleAccessDenied = (e) => {
@@ -245,12 +279,52 @@ export default function AdminLayout() {
             </Link>
 
             {/* Notification Bell */}
-            <button className="p-2 border border-line rounded-lg text-ink hover:bg-stone relative transition-colors">
-              <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-paper text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
-                3
-              </span>
-            </button>
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 border border-line rounded-lg text-ink hover:bg-stone relative transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-paper text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-paper border border-line rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
+                  <div className="px-4 py-3 bg-stone border-b border-line flex justify-between items-center">
+                    <span className="text-xs font-black uppercase text-ink tracking-wider">Alert Center</span>
+                    {notifications.length > 0 && (
+                      <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">
+                        {notifications.length} Issues
+                      </span>
+                    )}
+                  </div>
+                  <div className="divide-y divide-line max-h-64 overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map(n => (
+                        <Link
+                          key={n.id}
+                          to={n.actionUrl}
+                          onClick={() => setShowNotifications(false)}
+                          className="block px-4 py-3 hover:bg-stone transition-colors"
+                        >
+                          <div className="font-extrabold text-xs text-ink">{n.title}</div>
+                          <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{n.message}</div>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="px-4 py-6 text-center text-xs text-muted font-semibold flex flex-col items-center gap-1.5">
+                        <span className="text-emerald-500 font-extrabold text-base">✓</span>
+                        All products have healthy stock levels.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Settings Gear Shortcut */}
             {hasPermission('view_settings') && (
