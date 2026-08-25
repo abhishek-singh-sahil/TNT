@@ -258,6 +258,29 @@ export default function AdminOrders() {
     finally { setUpdatingStatus(false); }
   };
 
+  // ── Direct status update (bypasses state for instant action buttons) ─────
+  const handleDirectStatusUpdate = async (targetStatus) => {
+    if (!targetStatus || targetStatus === detailOrder?.orderStatus) return;
+    setUpdatingStatus(true);
+    try {
+      const r = await adminApi.updateOrderStatus(selectedOrder.id, { status: targetStatus });
+      if (r.success) {
+        const msgMap = {
+          RETURN_STARTED:       'Return accepted. Return pickup process started!',
+          DELIVERED:            'Return rejected. Order reverted to Delivered.',
+          RETURNED_AND_REFUNDED:'Order marked as Returned & Refunded. Stock restocked.',
+        };
+        toast.success(msgMap[targetStatus] || 'Status updated!');
+        setNewStatus(targetStatus);
+        fetchOrders(false);
+        fetchStats();
+        openDetails({ ...selectedOrder, orderStatus: targetStatus });
+      }
+    } catch (e) { toast.error(e.message || 'Failed to update status'); }
+    finally { setUpdatingStatus(false); }
+  };
+
+
   // ── Tracking update ───────────────────────────────────────────────────────
   const handleUpdateTracking = async () => {
     if (!courierPartner || !trackingNumber) { toast.error('Both courier and tracking number required'); return; }
@@ -623,6 +646,7 @@ export default function AdminOrders() {
               allowedNext={allowedNext}
               updatingStatus={updatingStatus}
               handleUpdateStatus={handleUpdateStatus}
+              handleDirectStatusUpdate={handleDirectStatusUpdate}
               handleCancelOrder={handleCancelOrder}
               courierPartner={courierPartner}
               setCourierPartner={setCourierPartner}
@@ -660,6 +684,7 @@ export default function AdminOrders() {
                   allowedNext={allowedNext}
                   updatingStatus={updatingStatus}
                   handleUpdateStatus={handleUpdateStatus}
+                  handleDirectStatusUpdate={handleDirectStatusUpdate}
                   handleCancelOrder={handleCancelOrder}
                   courierPartner={courierPartner}
                   setCourierPartner={setCourierPartner}
@@ -888,13 +913,15 @@ export default function AdminOrders() {
 }
 
 // ── Order Detail Content Component ────────────────────────────────────────────
-function OrderDetailContent({ order, newStatus, setNewStatus, allowedNext, updatingStatus, handleUpdateStatus, handleCancelOrder, courierPartner, setCourierPartner, trackingNumber, setTrackingNumber, showTrackingForm, setShowTrackingForm, handleUpdateTracking, onContactCustomer }) {
+function OrderDetailContent({ order, newStatus, setNewStatus, allowedNext, updatingStatus, handleUpdateStatus, handleDirectStatusUpdate, handleCancelOrder, courierPartner, setCourierPartner, trackingNumber, setTrackingNumber, showTrackingForm, setShowTrackingForm, handleUpdateTracking, onContactCustomer }) {
   const fmtC = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const fmtDateTime = (d) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const timeline = Array.isArray(order.timeline) ? [...order.timeline].reverse() : [];
-  const canCancel = !['CANCELLED', 'RETURNED', 'DELIVERED'].includes(order.orderStatus);
+  const canCancel = !['CANCELLED', 'RETURNED', 'DELIVERED', 'RETURN_REQUESTED', 'RETURN_STARTED', 'RETURNED_AND_REFUNDED'].includes(order.orderStatus);
+  const isReturnRequested  = order.orderStatus === 'RETURN_REQUESTED';
+  const isReturnStarted    = order.orderStatus === 'RETURN_STARTED';
 
   return (
     <div className="overflow-y-auto max-h-[calc(100vh-160px)] xl:max-h-[calc(100vh-160px)]">
@@ -1041,60 +1068,114 @@ function OrderDetailContent({ order, newStatus, setNewStatus, allowedNext, updat
         </div>
       )}
 
-      {/* Status Update */}
-      <div className="px-5 py-4">
+      {/* ── UPDATE STATUS section ─────────────────────────────────────────── */}
+      <div className="px-5 py-4 border-t border-line">
         <div className="text-[10px] font-black uppercase tracking-wider text-muted mb-3">Update Status</div>
-        {allowedNext.length === 0 ? (
-          <p className="text-[11px] text-muted italic">No status transitions available from current state.</p>
-        ) : (
+
+        {/* ─── Return Requested: Accept / Reject buttons ─── */}
+        {isReturnRequested && (
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <select
-                value={newStatus}
-                onChange={e => setNewStatus(e.target.value)}
-                className="flex-1 bg-stone border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none"
-              >
-                <option value={order.orderStatus}>{ORDER_STATUS_CONFIG[order.orderStatus]?.label || order.orderStatus} (current)</option>
-                {allowedNext.map(s => (
-                  <option key={s} value={s}>{ORDER_STATUS_CONFIG[s]?.label || s}</option>
-                ))}
-              </select>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 font-semibold leading-relaxed">
+              📦 Customer has requested a return for this order. Please review and take action below.
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <button
-                disabled={updatingStatus || newStatus === order.orderStatus}
-                onClick={handleUpdateStatus}
-                className="px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
+                disabled={updatingStatus}
+                onClick={() => handleDirectStatusUpdate('RETURN_STARTED')}
+                className="py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors"
               >
-                {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-                Update
+                {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                Accept Return
+              </button>
+              <button
+                disabled={updatingStatus}
+                onClick={() => handleDirectStatusUpdate('DELIVERED')}
+                className="py-2.5 bg-red-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                Reject Return
               </button>
             </div>
-            {newStatus === 'SHIPPED' && (
-              <div className="space-y-2 p-3 border border-line bg-stone/20 rounded-lg animate-fadeIn">
-                <div className="text-[9px] font-bold text-muted uppercase">Courier Info Required for Shipping</div>
-                <input
-                  required
-                  value={courierPartner}
-                  onChange={e => setCourierPartner(e.target.value)}
-                  placeholder="Courier Partner (e.g. Delhivery, Bluedart)"
-                  className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
-                />
-                <input
-                  required
-                  value={trackingNumber}
-                  onChange={e => setTrackingNumber(e.target.value)}
-                  placeholder="Tracking Number"
-                  className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
-                />
-              </div>
-            )}
+            <p className="text-[9px] text-muted italic">Accepting will start the return pickup process. Rejecting will revert the order to Delivered.</p>
           </div>
         )}
+
+        {/* ─── Return Started: Mark Refunded button ─── */}
+        {isReturnStarted && (
+          <div className="space-y-3">
+            <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-[11px] text-indigo-800 font-semibold leading-relaxed">
+              🔄 Return has been accepted. Once the item is received and refund is processed, mark it as refunded.
+            </div>
+            <button
+              disabled={updatingStatus}
+              onClick={() => handleDirectStatusUpdate('RETURNED_AND_REFUNDED')}
+              className="w-full py-2.5 bg-indigo-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+              Mark as Refunded
+            </button>
+            <p className="text-[9px] text-muted italic">This will mark the order as fully returned & refunded. Stock will be restocked automatically.</p>
+          </div>
+        )}
+
+        {/* ─── Generic status dropdown for all other states ─── */}
+        {!isReturnRequested && !isReturnStarted && (
+          <>
+            {allowedNext.length === 0 ? (
+              <p className="text-[11px] text-muted italic">No status transitions available from current state.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <select
+                    value={newStatus}
+                    onChange={e => setNewStatus(e.target.value)}
+                    className="flex-1 bg-stone border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none"
+                  >
+                    <option value={order.orderStatus}>{ORDER_STATUS_CONFIG[order.orderStatus]?.label || order.orderStatus} (current)</option>
+                    {allowedNext.map(s => (
+                      <option key={s} value={s}>{ORDER_STATUS_CONFIG[s]?.label || s}</option>
+                    ))}
+                  </select>
+                  <button
+                    disabled={updatingStatus || newStatus === order.orderStatus}
+                    onClick={handleUpdateStatus}
+                    className="px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
+                  >
+                    {updatingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                    Update
+                  </button>
+                </div>
+                {newStatus === 'SHIPPED' && (
+                  <div className="space-y-2 p-3 border border-line bg-stone/20 rounded-lg animate-fadeIn">
+                    <div className="text-[9px] font-bold text-muted uppercase">Courier Info Required for Shipping</div>
+                    <input
+                      required
+                      value={courierPartner}
+                      onChange={e => setCourierPartner(e.target.value)}
+                      placeholder="Courier Partner (e.g. Delhivery, Bluedart)"
+                      className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
+                    />
+                    <input
+                      required
+                      value={trackingNumber}
+                      onChange={e => setTrackingNumber(e.target.value)}
+                      placeholder="Tracking Number"
+                      className="w-full border border-line bg-paper rounded px-3 py-2 text-xs text-ink focus:outline-none focus:border-ink font-semibold"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
         {canCancel && (
           <button onClick={handleCancelOrder} className="w-full mt-3 py-2 border border-red-200 text-red-600 text-xs font-bold uppercase rounded-lg hover:bg-red-50 transition-colors">
             Cancel Order
           </button>
         )}
       </div>
+
     </div>
   );
 }

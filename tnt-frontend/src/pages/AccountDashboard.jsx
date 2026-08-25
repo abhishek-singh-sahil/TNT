@@ -240,7 +240,25 @@ export default function AccountDashboard() {
       
       <div className="space-y-6">
         {orders.length > 0 ? (
-          orders.map((order) => (
+          orders.map((order) => {
+            // Status config for customer-facing display
+            const STATUS_DISPLAY = {
+              PENDING:              { label: 'Pending',             cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+              CONFIRMED:            { label: 'Confirmed',           cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+              PACKED:               { label: 'Packed',              cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+              SHIPPED:              { label: 'Shipped',             cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+              IN_TRANSIT:           { label: 'In Transit',          cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+              OUT_FOR_DELIVERY:     { label: 'Out for Delivery',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+              DELIVERED:            { label: 'Delivered',           cls: 'bg-green-50 text-green-700 border-green-200' },
+              CANCELLED:            { label: 'Cancelled',           cls: 'bg-red-50 text-red-700 border-red-200' },
+              RETURN_REQUESTED:     { label: 'Return Requested',    cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+              RETURN_STARTED:       { label: 'Return in Progress',  cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+              RETURNED_AND_REFUNDED:{ label: 'Returned & Refunded', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+              RETURNED:             { label: 'Returned',            cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+            };
+            const statusInfo = STATUS_DISPLAY[order.orderStatus] || { label: order.orderStatus, cls: 'bg-stone text-muted border-line' };
+
+            return (
             <div key={order.id} className="border border-line rounded-xl overflow-hidden bg-paper shadow-xs hover:shadow-sm transition-all duration-200">
               {/* Order Card Header */}
               <div className="bg-stone/30 px-5 py-3 border-b border-line flex flex-wrap justify-between items-center gap-3">
@@ -258,17 +276,24 @@ export default function AccountDashboard() {
                     <span className="text-xs font-black text-ink">₹{order.totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
-                
-                <div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border ${
-                    order.orderStatus === 'DELIVERED' ? 'bg-green-50 text-green-700 border-green-200' :
-                    ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(order.orderStatus) ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                    'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}>
-                    {order.orderStatus}
-                  </span>
-                </div>
+
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border ${statusInfo.cls}`}>
+                  {statusInfo.label}
+                </span>
               </div>
+
+              {/* Return status note */}
+              {['RETURN_REQUESTED', 'RETURN_STARTED', 'RETURNED_AND_REFUNDED'].includes(order.orderStatus) && (
+                <div className={`px-5 py-2.5 text-[10px] font-semibold border-b border-line ${
+                  order.orderStatus === 'RETURN_REQUESTED'      ? 'bg-rose-50 text-rose-700' :
+                  order.orderStatus === 'RETURN_STARTED'        ? 'bg-indigo-50 text-indigo-700' :
+                  'bg-emerald-50 text-emerald-700'
+                }`}>
+                  {order.orderStatus === 'RETURN_REQUESTED'      && '📦 Your return request is under review. We\'ll notify you once it\'s approved.'}
+                  {order.orderStatus === 'RETURN_STARTED'        && '🔄 Your return has been approved! Please ship the item(s) back. Refund will be processed upon receipt.'}
+                  {order.orderStatus === 'RETURNED_AND_REFUNDED' && '✅ Your return has been completed and refund has been processed successfully.'}
+                </div>
+              )}
 
               {/* Order Card Body */}
               <div className="p-5 divide-y divide-line">
@@ -286,7 +311,6 @@ export default function AccountDashboard() {
                           <p className="text-[9px] text-muted mt-0.5">Qty: <span className="font-semibold text-ink">{item.quantity}</span> • Price: <span className="font-semibold text-ink">₹{item.price.toLocaleString()}</span></p>
                         </div>
                       </div>
-                      
                       <div className="text-right flex-shrink-0">
                         <span className="font-black text-xs text-ink">₹{(item.totalPrice || item.price * item.quantity).toLocaleString()}</span>
                       </div>
@@ -298,7 +322,9 @@ export default function AccountDashboard() {
               {/* Order Card Footer */}
               <div className="bg-stone/10 px-5 py-3 border-t border-line flex justify-between items-center gap-4 flex-wrap">
                 <span className="text-[10px] font-bold text-muted uppercase">
-                  Payment: <span className="text-ink font-extrabold">{order.payment?.paymentMethod || 'Online Method'}</span> ({order.paymentStatus})
+                  Payment: <span className="text-ink font-extrabold">{order.payment?.paymentMethod || 'Online Method'}</span>
+                  {order.paymentStatus === 'REFUNDED' && <span className="ml-2 text-emerald-600 font-extrabold">(Refunded ✓)</span>}
+                  {order.paymentStatus !== 'REFUNDED' && <span className="ml-1">({order.paymentStatus})</span>}
                 </span>
                 <div className="flex gap-2.5">
                   <Link
@@ -316,7 +342,8 @@ export default function AccountDashboard() {
                 </div>
               </div>
             </div>
-          ))
+          );
+          })
         ) : (
           <div className="py-24 text-center border border-line rounded-lg bg-stone/5 space-y-2">
             <ShoppingBag className="w-8 h-8 mx-auto text-muted/60 animate-pulse" />
