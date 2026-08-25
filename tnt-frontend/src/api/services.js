@@ -87,7 +87,10 @@ export const adminApi = {
   getOrderById: (id) => apiClient.get(`/admin/orders/${id}`),
   createOrder: (payload) => apiClient.post('/admin/orders', payload),
   exportOrdersUrl: (params) => `${apiClient.defaults.baseURL || ''}/admin/orders/export?${new URLSearchParams(params).toString()}`,
-  updateOrderStatus: (id, status) => apiClient.put(`/admin/orders/${id}/status`, { status }),
+  updateOrderStatus: (id, statusPayload) => {
+    const body = typeof statusPayload === 'string' ? { status: statusPayload } : statusPayload;
+    return apiClient.put(`/admin/orders/${id}/status`, body);
+  },
   updateOrderTracking: (id, payload) => apiClient.put(`/admin/orders/${id}/tracking`, payload),
   updateCustomer: (id, payload) => apiClient.put(`/admin/customers/${id}`, payload),
   deleteCustomer: (id) => apiClient.delete(`/admin/customers/${id}`),
