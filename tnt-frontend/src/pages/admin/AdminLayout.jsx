@@ -189,7 +189,7 @@ export default function AdminLayout() {
 
       {/* Admin Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-paper border-r border-line flex flex-col justify-between transition-transform duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-paper border-r border-line flex flex-col justify-between transition-transform duration-300 print:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -262,7 +262,7 @@ export default function AdminLayout() {
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="h-16 bg-paper border-b border-line px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+        <header className="h-16 bg-paper border-b border-line px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden text-ink">
               <Menu className="w-5 h-5" />

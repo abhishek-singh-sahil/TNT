@@ -590,7 +590,7 @@ export default function AdminOrders() {
         </div>
 
         {/* ── RIGHT: Order Details Panel (Desktop) ────────────────────────── */}
-        <div className="hidden xl:block bg-paper border border-line rounded-2xl overflow-hidden shadow-xs sticky top-4 print:block print:border-none print:shadow-none">
+        <div className="hidden xl:block bg-paper border border-line rounded-2xl overflow-hidden shadow-xs sticky top-4 print:hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-line print:hidden">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted">Order Details</span>
             {detailOrder && (

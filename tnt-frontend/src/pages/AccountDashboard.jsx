@@ -1227,8 +1227,8 @@ export default function AccountDashboard() {
   };
 
   return (
-    <div className={`bg-paper min-h-screen pt-4 pb-16 ${printingOrder ? 'print:hidden' : ''}`}>
-      <div className="max-w-container mx-auto px-4 lg:px-8">
+    <div className="bg-paper min-h-screen pt-4 pb-16">
+      <div className={`max-w-container mx-auto px-4 lg:px-8 ${printingOrder ? 'print:hidden' : ''}`}>
         {isMobile ? (
           // Mobile responsive: either Shein Menu or Selected subview full width
           <div className="max-w-2xl mx-auto">
@@ -1645,7 +1645,7 @@ export default function AccountDashboard() {
         );
       })()}
 
-      <div className="mt-16 hidden lg:block">
+      <div className="mt-16 hidden lg:block print:hidden">
         <TrustStrip />
       </div>
     </div>
