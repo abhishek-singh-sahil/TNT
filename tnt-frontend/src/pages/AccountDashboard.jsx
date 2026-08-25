@@ -1037,145 +1037,140 @@ export default function AccountDashboard() {
     const ordersInTransit = orders.filter(o => ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.orderStatus)).length;
     const wishlistCount = wishlistItems.length;
     const rewardPoints = user.rewardPoints || 320;
-    
-    // Tier progress logic
+
+    // Tier logic: Bronze→Silver@500, Silver→Gold@1000, Gold→Platinum@2000
+    let currentTierName = 'Bronze';
     let nextTierName = 'Silver Tier';
     let nextTierTarget = 500;
-    let pointsNeeded = 180;
-    if (rewardPoints >= 500 && rewardPoints < 1500) {
+    let tierStart = 0;
+    if (rewardPoints >= 500 && rewardPoints < 1000) {
+      currentTierName = 'Silver';
       nextTierName = 'Gold Tier';
-      nextTierTarget = 1500;
-      pointsNeeded = 1500 - rewardPoints;
-    } else if (rewardPoints >= 1500 && rewardPoints < 3000) {
+      nextTierTarget = 1000;
+      tierStart = 500;
+    } else if (rewardPoints >= 1000 && rewardPoints < 2000) {
+      currentTierName = 'Gold';
       nextTierName = 'Platinum Tier';
-      nextTierTarget = 3000;
-      pointsNeeded = 3000 - rewardPoints;
-    } else if (rewardPoints >= 3000) {
+      nextTierTarget = 2000;
+      tierStart = 1000;
+    } else if (rewardPoints >= 2000) {
+      currentTierName = 'Platinum';
       nextTierName = 'VIP Elite';
       nextTierTarget = 5000;
-      pointsNeeded = Math.max(0, 5000 - rewardPoints);
+      tierStart = 2000;
     }
-    
-    const progressPercent = Math.min(100, Math.round((rewardPoints / nextTierTarget) * 100));
-
-    // Get 4 recent orders
+    const pointsNeeded = Math.max(0, nextTierTarget - rewardPoints);
+    const tierRange = nextTierTarget - tierStart;
+    const progressPercent = Math.min(100, Math.round(((rewardPoints - tierStart) / tierRange) * 100));
+    const circumference = 2 * Math.PI * 46;
     const recentOrders = orders.slice(0, 4);
 
     return (
       <div className="space-y-6 animate-fadeIn bg-paper border border-line rounded-lg p-6 shadow-sm">
-        {/* Hey Akhtar! Header */}
+        {/* Header */}
         <div className="flex justify-between items-center border-b border-line pb-4">
           <div>
             <h2 className="text-lg font-black text-ink">Hey {user.firstName}! 👋</h2>
             <p className="text-xs text-muted mt-0.5">Here's what's happening with your account.</p>
           </div>
-          <button 
-            onClick={() => setCurrentPath('/account/details')}
+          <button
+            onClick={() => navigate('/account/details')}
             className="px-3.5 py-2 border border-line text-[10px] font-extrabold uppercase rounded hover:bg-stone text-ink transition-all tracking-wider"
           >
             Account Settings
           </button>
         </div>
 
-        {/* 4 KPI Cards Grid */}
+        {/* 4 KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: TOTAL ORDERS */}
-          <div className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm transition-all">
+          <div onClick={() => navigate('/account/orders')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
             <div className="space-y-1">
               <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Total Orders</span>
               <span className="text-2xl font-black text-ink block">{totalOrders}</span>
-              <button onClick={() => setCurrentPath('/account/orders')} className="text-[10px] font-extrabold text-ink underline flex items-center gap-0.5 pt-1 text-left">
-                View all orders ➔
-              </button>
+              <span className="text-[10px] font-extrabold text-ink underline">View all orders →</span>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink shadow-inner">
+            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 2: ORDERS IN TRANSIT */}
-          <div className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm transition-all">
+          <div onClick={() => navigate('/account/orders')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
             <div className="space-y-1">
               <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Orders in Transit</span>
               <span className="text-2xl font-black text-ink block">{ordersInTransit}</span>
-              <button onClick={() => setCurrentPath('/account/orders')} className="text-[10px] font-extrabold text-ink underline flex items-center gap-0.5 pt-1 text-left">
-                Track your orders ➔
-              </button>
+              <span className="text-[10px] font-extrabold text-ink underline">Track your orders →</span>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink shadow-inner">
+            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
               <Truck className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 3: WISHLIST ITEMS */}
-          <div className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm transition-all">
+          <div onClick={() => navigate('/wishlist')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
             <div className="space-y-1">
               <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Wishlist Items</span>
               <span className="text-2xl font-black text-ink block">{wishlistCount}</span>
-              <button onClick={() => navigate('/wishlist')} className="text-[10px] font-extrabold text-ink underline flex items-center gap-0.5 pt-1 text-left">
-                View your wishlist ➔
-              </button>
+              <span className="text-[10px] font-extrabold text-ink underline">View your wishlist →</span>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink shadow-inner">
+            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
               <Heart className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 4: TNT CLUB POINTS */}
-          <div className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm transition-all">
+          <div onClick={() => navigate('/account/rewards')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
             <div className="space-y-1">
               <span className="text-[9px] font-black text-muted uppercase tracking-wider block">TNT Club Points</span>
               <span className="text-2xl font-black text-ink block">{rewardPoints}</span>
-              <button onClick={() => setCurrentPath('/account/rewards')} className="text-[10px] font-extrabold text-ink underline flex items-center gap-0.5 pt-1 text-left">
-                View rewards ➔
-              </button>
+              <span className="text-[10px] font-extrabold text-ink underline">View rewards →</span>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink shadow-inner">
+            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
               <Award className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        {/* Main Grid: Recent Orders & Progress + Addresses */}
+        {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Block: Recent Orders (col-span-2) */}
+          {/* Recent Orders */}
           <div className="lg:col-span-2 border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
             <div className="flex justify-between items-center border-b border-line pb-3">
               <h3 className="text-xs font-black uppercase text-ink tracking-wider">Recent Orders</h3>
-              <button onClick={() => setCurrentPath('/account/orders')} className="text-[10px] font-extrabold text-ink underline">
-                View all orders ➔
+              <button onClick={() => navigate('/account/orders')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
+                View all orders →
               </button>
             </div>
             <div className="divide-y divide-line">
               {recentOrders.length > 0 ? (
                 recentOrders.map(o => {
                   const firstItem = o.items?.[0] || {};
-                  const itemImage = firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage || '/placeholder.png';
+                  const itemImage = firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage;
                   return (
                     <div key={o.id} className="py-3.5 flex items-center justify-between gap-4 group">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0 relative shadow-sm">
-                          <img src={itemImage} alt="product" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0 shadow-sm">
+                          {itemImage ? (
+                            <img src={itemImage} alt="product" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ShoppingBag className="w-5 h-5 text-muted/40" />
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-extrabold text-xs text-ink truncate max-w-[160px] sm:max-w-xs">{firstItem.productName || 'Streetwear Item'}</p>
-                          <p className="text-[10px] text-muted font-medium mt-0.5">
-                            {firstItem.variantInfo || 'One Size'}
-                          </p>
+                          <p className="text-[10px] text-muted font-medium mt-0.5">{firstItem.variantInfo || 'One Size'}</p>
                           <p className="text-[9px] text-muted mt-0.5">
-                            Order <span className="font-semibold text-ink">#{o.orderNumber}</span> • {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            Order <span className="font-semibold text-ink">#{o.orderNumber}</span> · {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-4 text-right flex-shrink-0">
+                      <div className="flex items-center gap-3 text-right flex-shrink-0">
                         <div>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
                             o.orderStatus === 'DELIVERED' ? 'bg-green-50 text-green-700 border-green-200' :
                             ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.orderStatus) ? 'bg-blue-50 text-blue-700 border-blue-200' :
                             'bg-amber-50 text-amber-700 border-amber-200'
                           }`}>
-                            {o.orderStatus}
+                            {(o.orderStatus || '').replace(/_/g, ' ')}
                           </span>
                           <p className="font-black text-xs text-ink mt-1">₹{(o.totalAmount || 0).toLocaleString()}</p>
                         </div>
@@ -1187,96 +1182,107 @@ export default function AccountDashboard() {
                   );
                 })
               ) : (
-                <div className="py-12 text-center text-xs text-muted font-medium italic">
-                  No orders placed yet. Start your street curation today!
+                <div className="py-12 text-center space-y-2">
+                  <ShoppingBag className="w-7 h-7 mx-auto text-muted/40" />
+                  <p className="text-xs text-muted italic">No orders placed yet.</p>
+                  <button onClick={() => navigate('/products')} className="text-xs font-extrabold text-ink underline">Browse Products →</button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Block: Progress & Addresses (col-span-1) */}
+          {/* Progress + Addresses */}
           <div className="space-y-6">
-            {/* TNT Club Progress Circular Card */}
-            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-line pb-3">
+            {/* TNT Club Progress */}
+            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
+              <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
                 <h3 className="text-xs font-black uppercase text-ink tracking-wider">TNT Club Progress</h3>
-                <button onClick={() => setCurrentPath('/account/rewards')} className="text-[10px] font-extrabold text-ink underline">
-                  View all rewards ➔
+                <button onClick={() => navigate('/account/rewards')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
+                  View all rewards →
                 </button>
               </div>
-              
-              <div className="flex flex-col items-center py-2">
-                {/* Circular Indicator */}
-                <div className="relative w-28 h-28 flex items-center justify-center mb-3">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="56" cy="56" r="48" stroke="#E5E5E7" strokeWidth="8" fill="transparent" />
-                    <circle 
-                      cx="56" cy="56" r="48" stroke="#111111" strokeWidth="8" fill="transparent"
-                      strokeDasharray={301.6}
-                      strokeDashoffset={301.6 - (301.6 * progressPercent) / 100}
+              <div className="flex flex-col items-center">
+                {/* Circular ring */}
+                <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+                  <svg viewBox="0 0 112 112" className="w-full h-full -rotate-90">
+                    <circle cx="56" cy="56" r="46" stroke="#E8E8E8" strokeWidth="9" fill="none" />
+                    <circle
+                      cx="56" cy="56" r="46"
+                      stroke="#111111" strokeWidth="9" fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference - (circumference * progressPercent) / 100}
+                      style={{ transition: 'stroke-dashoffset 1s ease' }}
                     />
                   </svg>
-                  <div className="absolute flex flex-col items-center text-center">
-                    <span className="text-lg font-black text-ink">{rewardPoints}</span>
-                    <span className="text-[8px] font-bold text-muted uppercase tracking-wider">Points</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-black text-ink leading-none">{rewardPoints}</span>
+                    <span className="text-[9px] font-bold text-muted uppercase tracking-wide mt-0.5">Points</span>
                   </div>
                 </div>
-                
-                <div className="text-center w-full space-y-1">
-                  <p className="text-xs font-bold text-ink">You're {pointsNeeded} points away from</p>
-                  <p className="text-xs font-black text-indigo-600 uppercase tracking-wide">{nextTierName}</p>
-                  
-                  {/* Progress bar */}
-                  <div className="w-full bg-stone rounded-full h-1.5 mt-3 overflow-hidden border border-line">
-                    <div className="bg-ink h-1.5 rounded-full" style={{ width: `${progressPercent}%` }} />
+
+                {/* Tier info */}
+                <div className="w-full text-center space-y-2">
+                  <div className="inline-flex items-center gap-1.5 bg-stone/60 border border-line rounded px-3 py-1">
+                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    <span className="text-[9px] font-extrabold text-ink uppercase tracking-widest">{currentTierName} Tier</span>
                   </div>
-                  <div className="flex justify-between text-[8px] font-bold text-muted uppercase pt-1">
-                    <span>{rewardPoints} Points</span>
-                    <span>{nextTierTarget} Points Target</span>
+                  <p className="text-xs font-bold text-ink">
+                    You're <span className="font-black">{pointsNeeded}</span> points away from
+                  </p>
+                  <p className="text-xs font-black text-ink uppercase tracking-wider">{nextTierName}</p>
+                  <div className="w-full bg-stone rounded-full h-2 overflow-hidden border border-line mt-2">
+                    <div className="bg-ink h-2 rounded-full transition-all duration-700" style={{ width: `${progressPercent}%` }} />
                   </div>
+                  <div className="flex justify-between text-[8px] font-bold text-muted uppercase pt-0.5">
+                    <span>{tierStart} pts</span>
+                    <span>{progressPercent}%</span>
+                    <span>{nextTierTarget} pts</span>
+                  </div>
+                  <p className="text-[9px] text-muted mt-1">Earn points on every purchase and unlock exclusive rewards!</p>
                 </div>
               </div>
             </div>
 
-            {/* Saved Addresses Card */}
-            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-line pb-3">
+            {/* Saved Addresses */}
+            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
+              <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
                 <h3 className="text-xs font-black uppercase text-ink tracking-wider">Saved Addresses</h3>
-                <button onClick={() => setCurrentPath('/account/addresses')} className="text-[10px] font-extrabold text-ink underline">
-                  View all addresses ➔
+                <button onClick={() => navigate('/account/addresses')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
+                  View all →
                 </button>
               </div>
-              <div className="space-y-3.5 max-h-56 overflow-y-auto">
+              <div className="space-y-3">
                 {addresses.length > 0 ? (
                   addresses.slice(0, 2).map((addr, idx) => (
-                    <div key={addr.id} className="flex gap-2.5 items-start p-3 border border-line rounded bg-stone/5 relative">
-                      <MapPin className="w-4 h-4 text-muted shrink-0 mt-0.5" />
+                    <div key={addr.id} className="flex gap-2.5 items-start p-3 border border-line rounded-lg bg-stone/5">
+                      <MapPin className="w-3.5 h-3.5 text-muted shrink-0 mt-0.5" />
                       <div className="text-[10px] min-w-0 text-muted leading-relaxed">
-                        <p className="font-extrabold text-ink text-xs">{addr.type} {idx === 0 && '(Default)'}</p>
-                        <p className="font-bold text-ink mt-0.5">{addr.fullName}</p>
-                        <p>{addr.street}</p>
-                        {addr.locality && <p>{addr.locality}</p>}
-                        <p>{addr.city}, {addr.state} - {addr.postalCode}</p>
+                        <p className="font-extrabold text-ink text-[11px]">{addr.type}{addr.isDefault ? ' (Default)' : ''}</p>
+                        <p className="font-semibold text-ink mt-0.5">{addr.fullName}</p>
+                        <p>{addr.street}{addr.locality ? `, ${addr.locality}` : ''}</p>
+                        <p>{addr.city}, {addr.state} – {addr.postalCode}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[11px] text-muted italic">No shipping addresses saved yet.</p>
+                  <div className="text-center py-4 space-y-2">
+                    <p className="text-[11px] text-muted italic">No addresses saved yet.</p>
+                    <button onClick={() => navigate('/account/addresses')} className="text-[10px] font-extrabold text-ink underline">Add an address →</button>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recently Viewed Block */}
-        <div className="border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
-          <div className="flex justify-between items-center border-b border-line pb-3">
+        {/* Recently Viewed */}
+        <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
+          <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
             <h3 className="text-xs font-black uppercase text-ink tracking-wider">Recently Viewed</h3>
-            <Link to="/products" className="text-[10px] font-extrabold text-ink underline">
-              View all ➔
-            </Link>
+            <Link to="/products" className="text-[10px] font-extrabold text-ink underline hover:opacity-70">View all →</Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {[
               { name: 'Oversized Minimal Tee', price: '₹1,499', img: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300' },
               { name: 'Essential Beige Hoodie', price: '₹2,199', img: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=300' },
@@ -1285,50 +1291,58 @@ export default function AccountDashboard() {
               { name: 'TNT Tote Bag', price: '₹1,299', img: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=300' },
               { name: 'TNT Cargo Pants', price: '₹2,499', img: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300' },
             ].map((p, idx) => (
-              <div key={idx} className="border border-line rounded-lg p-2.5 bg-stone/5 flex flex-col justify-between group cursor-pointer hover:shadow-md transition-shadow">
-                <div className="aspect-[4/5] bg-stone rounded overflow-hidden relative shadow-inner">
+              <Link to="/products" key={idx} className="border border-line rounded-lg p-2 bg-stone/5 flex flex-col group hover:shadow-md transition-shadow">
+                <div className="aspect-[4/5] bg-stone rounded overflow-hidden">
                   <img src={p.img} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <div className="mt-2 text-[10px]">
-                  <p className="font-extrabold text-ink truncate">{p.name}</p>
+                <div className="mt-1.5 text-[10px]">
+                  <p className="font-extrabold text-ink truncate leading-snug">{p.name}</p>
                   <p className="font-black text-ink mt-0.5">{p.price}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* Need Help? list block */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-          <div className="md:col-span-2 border border-line rounded-xl p-5 bg-paper shadow-xs flex flex-col justify-center text-center py-8">
-            <h4 className="font-extrabold text-sm text-ink mb-1">Need help with your styling curation?</h4>
-            <p className="text-xs text-muted max-w-md mx-auto mb-4">Our styling concierge is here to assist with size selection, exchanges, order tracing, or bulk deliveries.</p>
-            <button onClick={() => setCurrentPath('/account/customercare')} className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 mx-auto tracking-wider transition-all">
-              Contact Support Concierge
+        {/* Need Help + Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="md:col-span-2 border border-line rounded-xl p-6 bg-paper shadow-xs flex flex-col items-center text-center justify-center space-y-3">
+            <HelpCircle className="w-8 h-8 text-muted/60" />
+            <h4 className="font-extrabold text-sm text-ink">Need Help?</h4>
+            <p className="text-xs text-muted max-w-sm">Our team is here to assist with size selection, exchanges, order tracing, or anything else you need.</p>
+            <button
+              onClick={() => navigate('/account/customercare')}
+              className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 tracking-wider transition-all"
+            >
+              Contact Support
             </button>
           </div>
-          
-          <div className="border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
-            <h3 className="text-xs font-black uppercase text-ink tracking-wider border-b border-line pb-3">Quick Actions</h3>
-            <div className="space-y-3.5 text-xs">
-              <button onClick={() => setCurrentPath('/account/orders')} className="flex items-center justify-between w-full font-extrabold text-ink hover:underline text-left">
-                <span>1. Track recent order</span>
-                <span className="text-muted">➔</span>
-              </button>
-              <button onClick={() => setCurrentPath('/account/returns')} className="flex items-center justify-between w-full font-extrabold text-ink hover:underline text-left">
-                <span>2. Request easy return</span>
-                <span className="text-muted">➔</span>
-              </button>
-              <button onClick={() => setCurrentPath('/account/customercare')} className="flex items-center justify-between w-full font-extrabold text-ink hover:underline text-left">
-                <span>3. Contact Customer Care</span>
-                <span className="text-muted">➔</span>
-              </button>
+
+          <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
+            <h3 className="text-xs font-black uppercase text-ink tracking-wider border-b border-line pb-3 mb-4">Quick Actions</h3>
+            <div className="space-y-0 divide-y divide-line">
+              {[
+                { label: 'Track recent order', path: '/account/orders' },
+                { label: 'Request a return', path: '/account/returns' },
+                { label: 'Contact Customer Care', path: '/account/customercare' },
+                { label: 'View TNT Club Rewards', path: '/account/rewards' },
+              ].map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate(item.path)}
+                  className="flex items-center justify-between w-full text-xs font-extrabold text-ink hover:opacity-70 transition-opacity text-left py-3 group"
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              ))}
             </div>
           </div>
         </div>
       </div>
     );
   };
+
 
   // Shein-Style Menu List (Mobile Dashboard View)
   const renderAccountMenuMobile = () => {
