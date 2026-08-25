@@ -228,7 +228,7 @@ export default function AdminDashboard() {
       {/* Dashboard Top Header & Date Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-4">
         <div>
-          <h1 className="text-2xl font-black text-ink uppercase tracking-tight">OVERVIEW DASHBOARD</h1>
+          <h1 className="text-2xl font-black text-ink tracking-tight">Overview Dashboard</h1>
           <p className="text-xs text-muted font-medium">Track, analyze and manage your business performance in real time.</p>
         </div>
         
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                   setShowCustomPicker(true);
                 }
               }}
-              className="bg-paper border border-line text-xs px-3.5 py-2 rounded-lg font-bold text-ink uppercase tracking-wider focus:outline-none focus:border-ink cursor-pointer flex-1 sm:flex-initial"
+              className="bg-paper border border-line text-xs px-3.5 py-2 rounded-lg font-bold text-ink tracking-wider focus:outline-none focus:border-ink cursor-pointer flex-1 sm:flex-initial"
             >
               {dateRangeOptions.map((opt) => (
                 <option key={opt.key} value={opt.key}>
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-line pb-3">
                   <div>
-                    <h3 className="font-extrabold text-sm uppercase text-ink tracking-tight">Sales Performance</h3>
+                    <h3 className="font-extrabold text-sm text-ink tracking-tight">Sales Performance</h3>
                     <p className="text-[10px] text-muted">Core operational graphs mapped dynamically to order transaction logs.</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -393,28 +393,28 @@ export default function AdminDashboard() {
                 {/* Inline Summary Statistics row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2">
                   <div className="border-r border-line pr-2">
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-wider block">Total Revenue</span>
+                    <span className="text-[9px] font-bold text-muted tracking-wider block">Total Revenue</span>
                     <span className="text-base font-extrabold text-ink block">{hasReports ? formatCurrency(salesPerformance.revenue) : '₹0'}</span>
                     <span className="text-[9px] text-emerald-600 font-bold">
                       {hasReports ? `${kpis.revenue.change >= 0 ? '↑' : '↓'} ${Math.abs(kpis.revenue.change)}% vs last period` : 'Not Authorized'}
                     </span>
                   </div>
                   <div className="sm:border-r border-line pr-2">
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-wider block">Total Orders</span>
+                    <span className="text-[9px] font-bold text-muted tracking-wider block">Total Orders</span>
                     <span className="text-base font-extrabold text-ink block">{hasOrders ? salesPerformance.orders : 0}</span>
                     <span className="text-[9px] text-emerald-600 font-bold">
                       {hasOrders ? `${kpis.orders.change >= 0 ? '↑' : '↓'} ${Math.abs(kpis.orders.change)}%` : 'Not Authorized'}
                     </span>
                   </div>
                   <div className="border-r border-line pr-2">
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-wider block">Average Order Value</span>
+                    <span className="text-[9px] font-bold text-muted tracking-wider block">Average Order Value</span>
                     <span className="text-base font-extrabold text-ink block">{hasReports ? formatCurrency(salesPerformance.aov) : '₹0'}</span>
                     <span className="text-[9px] text-emerald-600 font-bold">
                       Active basket averages
                     </span>
                   </div>
                   <div>
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-wider block">New Customers</span>
+                    <span className="text-[9px] font-bold text-muted tracking-wider block">New Customers</span>
                     <span className="text-base font-extrabold text-ink block">{hasCustomers ? salesPerformance.newCustomers : 0}</span>
                     <span className="text-[9px] text-emerald-600 font-bold">
                       Registered signups
@@ -428,7 +428,7 @@ export default function AdminDashboard() {
                 {salesPerformance.chart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center border border-dashed border-line rounded-lg text-center p-6 bg-stone/20">
                     <ShoppingBag className="w-8 h-8 text-muted mb-2 animate-pulse" />
-                    <span className="font-extrabold text-xs uppercase text-ink">NO TRANSACTION METRICS</span>
+                    <span className="font-extrabold text-xs text-ink">No Transaction Metrics</span>
                     <p className="text-[10px] text-muted max-w-xs mt-1">Once orders are placed and processed, real-time curves will display here.</p>
                   </div>
                 ) : (
@@ -472,10 +472,10 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-line pb-3">
                   <div>
-                    <h3 className="font-extrabold text-sm uppercase text-ink tracking-tight">Inventory Reorder Alerts</h3>
+                    <h3 className="font-extrabold text-sm text-ink tracking-tight">Inventory Reorder Alerts</h3>
                     <p className="text-[10px] text-muted">Add stocks to items matching low-stock benchmarks.</p>
                   </div>
-                  <Link to="/admin/products" className="text-[10px] font-bold text-ink hover:underline uppercase tracking-wider">
+                  <Link to="/admin/products" className="text-[10px] font-bold text-ink hover:underline tracking-wider">
                     View All
                   </Link>
                 </div>
@@ -484,7 +484,7 @@ export default function AdminDashboard() {
                 {inventoryAlerts.length === 0 ? (
                   <div className="text-center py-16 text-muted">
                     <Check className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
-                    <span className="font-bold text-[11px] uppercase">All Stock Healthy</span>
+                    <span className="font-bold text-[11px]">All Stock Healthy</span>
                     <p className="text-[10px] mt-1">No items currently below reorder levels.</p>
                   </div>
                 ) : (
@@ -494,7 +494,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded bg-stone border border-line flex items-center justify-center overflow-hidden shrink-0">
                             {item.image ? (
-                              <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                <img src={item.image} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <Package className="w-4 h-4 text-muted" />
                             )}
@@ -507,7 +507,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
                             <span className="font-bold text-ink block">{item.stock} / {item.reorderLevel}</span>
-                            <span className={`text-[9px] font-extrabold uppercase ${
+                            <span className={`text-[9px] font-extrabold ${
                               item.status === 'Critical' ? 'text-red-600' : 'text-amber-600'
                             }`}>
                               {item.status}
@@ -518,7 +518,7 @@ export default function AdminDashboard() {
                               setRestockItem(item);
                               setRestockQty('50');
                             }}
-                            className="px-3 py-1.5 bg-ink text-paper text-[10px] font-bold uppercase rounded hover:bg-ink/90 transition-colors"
+                            className="px-3 py-1.5 bg-ink text-paper text-[10px] font-bold rounded hover:bg-ink/90 transition-colors"
                           >
                             Restock
                           </button>
@@ -545,8 +545,8 @@ export default function AdminDashboard() {
               <div className="bg-paper border border-line rounded-xl p-5 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-line pb-2.5">
-                    <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Recent Orders</span>
-                    <Link to="/admin/orders" className="text-[9px] font-bold text-ink hover:underline uppercase tracking-wider">
+                    <span className="font-extrabold text-xs text-ink tracking-wider">Recent Orders</span>
+                    <Link to="/admin/orders" className="text-[9px] font-bold text-ink hover:underline tracking-wider">
                       View All
                     </Link>
                   </div>
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-ink block">{formatCurrency(o.amount)}</span>
-                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
                               o.status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                               o.status === 'CANCELLED' ? 'bg-red-50 text-red-700 border border-red-100' :
                               'bg-blue-50 text-blue-700 border border-blue-100'
@@ -583,8 +583,8 @@ export default function AdminDashboard() {
               <div className="bg-paper border border-line rounded-xl p-5 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-line pb-2.5">
-                    <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Top Selling Products</span>
-                    <Link to="/admin/products" className="text-[9px] font-bold text-ink hover:underline uppercase tracking-wider">
+                    <span className="font-extrabold text-xs text-ink tracking-wider">Top Selling Products</span>
+                    <Link to="/admin/products" className="text-[9px] font-bold text-ink hover:underline tracking-wider">
                       View All
                     </Link>
                   </div>
@@ -614,8 +614,8 @@ export default function AdminDashboard() {
               <div className="bg-paper border border-line rounded-xl p-5 shadow-xs flex flex-col justify-between">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center border-b border-line pb-2.5">
-                    <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Customer Growth</span>
-                    <Link to="/admin/customers" className="text-[9px] font-bold text-ink hover:underline uppercase tracking-wider">
+                    <span className="font-extrabold text-xs text-ink tracking-wider">Customer Growth</span>
+                    <Link to="/admin/customers" className="text-[9px] font-bold text-ink hover:underline tracking-wider">
                       View All
                     </Link>
                   </div>
@@ -651,8 +651,8 @@ export default function AdminDashboard() {
               <div className="bg-paper border border-line rounded-xl p-5 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-line pb-2.5">
-                    <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Recent Reviews</span>
-                    <Link to="/admin/reviews" className="text-[9px] font-bold text-ink hover:underline uppercase tracking-wider">
+                    <span className="font-extrabold text-xs text-ink tracking-wider">Recent Reviews</span>
+                    <Link to="/admin/reviews" className="text-[9px] font-bold text-ink hover:underline tracking-wider">
                       View All
                     </Link>
                   </div>

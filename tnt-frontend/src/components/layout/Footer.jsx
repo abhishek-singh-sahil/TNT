@@ -104,7 +104,21 @@ export default function Footer() {
 
       <div className="border-t border-paper/10">
         <div className="container-tnt py-5 flex flex-col msm:flex-row items-center justify-between gap-3 text-xs text-paper/50">
-          <p>© {new Date().getFullYear()} TNT Clothing. All Rights Reserved.</p>
+          <div className="space-y-1">
+            <p>© {new Date().getFullYear()} TNT Clothing. All Rights Reserved.</p>
+            <p>
+              The website is built and managed by{' '}
+              <a
+                href="https://wa.me/9117261314"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-paper underline"
+              >
+                Abhishek Singh Sahil
+              </a>{' '}
+              phone no 6204635073
+            </p>
+          </div>
           <div className="flex items-center gap-5">
             <Link to="/privacy-policy" className="hover:text-paper">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-paper">Terms & Conditions</Link>

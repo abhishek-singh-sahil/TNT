@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { marketingApi, adminApi, productApi } from '../../api/services';
 import toast from 'react-hot-toast';
+import ActionMenu from '../../components/common/ActionMenu';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -308,7 +309,7 @@ export default function AdminMarketing() {
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-ink uppercase flex items-center gap-2">
+          <h1 className="text-xl font-extrabold tracking-tight text-ink flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-muted" />
             Coupons & Marketing
           </h1>
@@ -321,7 +322,7 @@ export default function AdminMarketing() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${
                 tab === id
                   ? 'bg-paper text-ink shadow-xs'
                   : 'text-muted hover:text-ink'
@@ -375,7 +376,7 @@ export default function AdminMarketing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Redemption Stats */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 col-span-1">
-              <h2 className="text-[11px] font-extrabold uppercase text-muted tracking-widest border-b border-line pb-2">
+              <h2 className="text-[11px] font-extrabold text-muted tracking-widest border-b border-line pb-2">
                 Coupon Redemptions
               </h2>
               <div className="space-y-3 text-xs font-semibold">
@@ -395,7 +396,7 @@ export default function AdminMarketing() {
 
             {/* Sale Campaign Stats */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 col-span-1">
-              <h2 className="text-[11px] font-extrabold uppercase text-muted tracking-widest border-b border-line pb-2">
+              <h2 className="text-[11px] font-extrabold text-muted tracking-widest border-b border-line pb-2">
                 Sale Campaign Scope
               </h2>
               <div className="space-y-3 text-xs font-semibold">
@@ -415,12 +416,12 @@ export default function AdminMarketing() {
 
             {/* Quick Actions */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-3 col-span-1">
-              <h2 className="text-[11px] font-extrabold uppercase text-muted tracking-widest border-b border-line pb-2">
+              <h2 className="text-[11px] font-extrabold text-muted tracking-widest border-b border-line pb-2">
                 Quick Actions
               </h2>
               <button
                 onClick={() => { setTab('coupons'); openCreateCoupon(); }}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-ink text-paper rounded-lg text-xs font-bold uppercase hover:bg-ink/90 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-ink text-paper rounded-lg text-xs font-bold hover:bg-ink/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Create New Coupon
@@ -428,7 +429,7 @@ export default function AdminMarketing() {
               </button>
               <button
                 onClick={() => { setTab('sales'); openCreateSale(); }}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-line rounded-lg text-xs font-bold uppercase text-ink hover:bg-stone transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 border border-line rounded-lg text-xs font-bold text-ink hover:bg-stone transition-colors"
               >
                 <Megaphone className="w-4 h-4" />
                 Create Sale Campaign
@@ -436,7 +437,7 @@ export default function AdminMarketing() {
               </button>
               <button
                 onClick={() => setTab('coupons')}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-line rounded-lg text-xs font-bold uppercase text-ink hover:bg-stone transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 border border-line rounded-lg text-xs font-bold text-ink hover:bg-stone transition-colors"
               >
                 <BarChart2 className="w-4 h-4" />
                 View All Coupons
@@ -670,12 +671,12 @@ export default function AdminMarketing() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-sm font-extrabold uppercase text-ink">Sale Campaigns</h2>
+              <h2 className="text-sm font-extrabold text-ink">Sale Campaigns</h2>
               <p className="text-[11px] text-muted">{sales.length} campaign{sales.length !== 1 ? 's' : ''} total</p>
             </div>
             <button
               onClick={openCreateSale}
-              className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper rounded-lg text-xs font-bold uppercase hover:bg-ink/90 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper rounded-lg text-xs font-bold hover:bg-ink/90 transition-colors"
             >
               <Plus className="w-4 h-4" /> Create Campaign
             </button>
@@ -717,21 +718,21 @@ export default function AdminMarketing() {
                           >
                             -{sale.salePercentage}% {sale.badgeText}
                           </span>
-                          <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 text-[11px] pt-3 border-t border-line">
                         <div>
-                          <span className="text-muted block text-[9px] uppercase font-bold mb-0.5">Start</span>
+                          <span className="text-muted block text-[9px] font-bold mb-0.5">Start</span>
                           <span className="font-semibold text-ink">{fmtDate(sale.startDate)}</span>
                         </div>
                         <div>
-                          <span className="text-muted block text-[9px] uppercase font-bold mb-0.5">End</span>
+                          <span className="text-muted block text-[9px] font-bold mb-0.5">End</span>
                           <span className="font-semibold text-ink">{fmtDate(sale.endDate)}</span>
                         </div>
                         <div>
-                          <span className="text-muted block text-[9px] uppercase font-bold mb-0.5">Scope</span>
+                          <span className="text-muted block text-[9px] font-bold mb-0.5">Scope</span>
                           <span className="font-semibold text-ink capitalize">
                             {sale.campaignType === 'PRODUCT'
                               ? `${(sale.products || []).length} Products`
@@ -741,7 +742,7 @@ export default function AdminMarketing() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-muted block text-[9px] uppercase font-bold mb-0.5">Priority</span>
+                          <span className="text-muted block text-[9px] font-bold mb-0.5">Priority</span>
                           <span className="font-semibold text-ink">{sale.priority || 0}</span>
                         </div>
                       </div>
@@ -749,7 +750,7 @@ export default function AdminMarketing() {
                       <div className="flex gap-2 mt-auto pt-3 border-t border-line">
                         <button
                           onClick={() => openEditSale(sale)}
-                          className="flex-1 py-2 border border-line rounded-lg text-[11px] font-bold text-ink uppercase hover:bg-stone transition-colors"
+                          className="flex-1 py-2 border border-line rounded-lg text-[11px] font-bold text-ink hover:bg-stone transition-colors"
                         >
                           Edit
                         </button>
@@ -776,7 +777,7 @@ export default function AdminMarketing() {
         <div className="space-y-4">
           <div className="bg-paper border border-line rounded-xl p-5 flex justify-between items-center">
             <div>
-              <h2 className="text-sm font-extrabold uppercase text-ink">Newsletter Subscribers</h2>
+              <h2 className="text-sm font-extrabold text-ink">Newsletter Subscribers</h2>
               <p className="text-[11px] text-muted mt-0.5">Emails subscribed for newsletters, early drops, and promotions.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -795,7 +796,7 @@ export default function AdminMarketing() {
               </div>
             ) : (
               <table className="w-full text-xs">
-                <thead className="bg-stone border-b border-line text-[10px] uppercase text-muted font-bold tracking-wider">
+                <thead className="bg-stone border-b border-line text-[10px] text-muted font-bold tracking-wider">
                   <tr>
                     <th className="px-5 py-3.5 text-left">#</th>
                     <th className="px-5 py-3.5 text-left">Email Address</th>

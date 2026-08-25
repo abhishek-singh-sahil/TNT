@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import toast from 'react-hot-toast';
+import ActionMenu from '../../components/common/ActionMenu';
 
 const DEPARTMENTS = [
   'Engineering',
@@ -432,12 +433,12 @@ export default function AdminStaff() {
       {/* 5. Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-4">
         <div>
-          <h1 className="text-2xl font-black text-ink uppercase tracking-tight">Staff Management</h1>
+          <h1 className="text-2xl font-black text-ink tracking-tight">Staff Management</h1>
           <p className="text-xs text-muted">Manage and monitor all staff members efficiently</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-ink/90 flex items-center gap-2 shadow-sm transition-all"
+          className="px-5 py-2.5 bg-ink text-paper text-xs font-bold tracking-wider rounded-lg hover:bg-ink/90 flex items-center gap-2 shadow-sm transition-all"
         >
           <Plus className="w-4 h-4" /> Add Staff
         </button>
@@ -448,7 +449,7 @@ export default function AdminStaff() {
         {/* KPI 1 */}
         <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">Total Staff</span>
+            <span className="text-[10px] font-bold text-muted tracking-widest block">Total Staff</span>
             <span className="text-3xl font-black text-ink block">{loading ? '...' : kpis.totalStaff}</span>
             <span className="text-[10px] text-emerald-600 font-extrabold flex items-center gap-0.5">
               ▲ 12% <span className="text-muted font-bold">vs. last month</span>
@@ -509,25 +510,25 @@ export default function AdminStaff() {
         
         {/* Staff List Header */}
         <div className="p-5 border-b border-line flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="font-extrabold text-sm text-ink uppercase tracking-wider">
+          <h2 className="font-extrabold text-sm text-ink tracking-wider">
             Staff List ({totalItems})
           </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleOpenCreate}
-              className="px-4 py-2 bg-ink text-paper text-[10px] font-bold uppercase tracking-wider rounded hover:bg-ink/90 flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 bg-ink text-paper text-[10px] font-bold tracking-wider rounded hover:bg-ink/90 flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-3.5 h-3.5" /> Add Staff
             </button>
             <button
               onClick={handleExportCSV}
-              className="px-4 py-2 border border-line text-[10px] font-bold text-ink uppercase tracking-wider rounded hover:bg-stone flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 border border-line text-[10px] font-bold text-ink tracking-wider rounded hover:bg-stone flex items-center gap-1.5 transition-all"
             >
               <FileDown className="w-3.5 h-3.5" /> Export
             </button>
             <button
               onClick={() => handleOpenEmail(null)}
-              className="px-4 py-2 border border-line text-[10px] font-bold text-ink uppercase tracking-wider rounded hover:bg-stone flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 border border-line text-[10px] font-bold text-ink tracking-wider rounded hover:bg-stone flex items-center gap-1.5 transition-all"
               title="Broadcast email to all staff"
             >
               <Mail className="w-3.5 h-3.5" /> Broadcast
@@ -638,14 +639,14 @@ export default function AdminStaff() {
                   setSearchVal('');
                   setSearchParams({});
                 }}
-                className="px-4 py-2 bg-stone border border-line rounded text-xs font-bold uppercase hover:bg-stone/80 text-ink"
+                 className="px-4 py-2 bg-stone border border-line rounded text-xs font-bold hover:bg-stone/80 text-ink"
               >
                 Reset All Filters
               </button>
             </div>
           ) : (
             <table className="w-full text-xs text-left border-collapse">
-              <thead className="bg-stone/50 font-bold uppercase text-ink border-b border-line select-none">
+              <thead className="bg-stone/50 font-bold text-ink border-b border-line select-none">
                 <tr>
                   <th className="p-4 w-12 text-center">
                     <input
@@ -772,65 +773,43 @@ export default function AdminStaff() {
                       </td>
 
                       {/* Row Actions Menu */}
-                      <td className="p-4 text-right relative">
-                        <button
-                          onClick={() => setActiveMenuId(activeMenuId === member.id ? null : member.id)}
-                          className="p-1.5 border border-line rounded-lg text-muted hover:text-ink hover:bg-stone transition-all"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {/* Action Dropdown Menu */}
-                        {activeMenuId === member.id && (
-                          <div className="absolute right-4 top-12 z-20 bg-paper border border-line rounded-xl shadow-xl w-44 p-1.5 animate-scale-in text-left">
-                            <button
-                              onClick={() => {
-                                handleOpenEdit(member);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-2 text-xs font-semibold text-ink rounded-lg hover:bg-stone flex items-center gap-2"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-muted" /> Edit Staff
+                      <td className="p-4 text-right" onClick={e => e.stopPropagation()}>
+                        <ActionMenu
+                          trigger={
+                            <button className="p-1.5 border border-line rounded-lg text-muted hover:text-ink hover:bg-stone transition-all">
+                              <MoreVertical className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => {
-                                handleOpenResetPassword(member);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-2 text-xs font-semibold text-ink rounded-lg hover:bg-stone flex items-center gap-2"
-                            >
-                              <Key className="w-3.5 h-3.5 text-muted" /> Reset Password
-                            </button>
-                            <button
-                              onClick={() => {
-                                handleToggleStatus(member);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-2 text-xs font-semibold text-ink rounded-lg hover:bg-stone flex items-center gap-2"
-                            >
-                              <UserCheck className="w-3.5 h-3.5 text-muted" /> {member.isBlocked ? 'Activate' : 'Deactivate'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                handleOpenEmail(member);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-2 text-xs font-semibold text-ink rounded-lg hover:bg-stone flex items-center gap-2"
-                            >
-                              <Mail className="w-3.5 h-3.5 text-muted" /> Send Email
-                            </button>
-                            <div className="border-t border-line my-1.5" />
-                            <button
-                              onClick={() => {
-                                setDeleteConfirmStaff(member);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-2 text-xs font-bold text-red-600 rounded-lg hover:bg-red-50 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" /> Delete Member
-                            </button>
-                          </div>
-                        )}
+                          }
+                          items={[
+                            {
+                              label: 'Edit Staff',
+                              icon: <Edit3 className="w-3.5 h-3.5 text-muted" />,
+                              onClick: () => handleOpenEdit(member)
+                            },
+                            {
+                              label: 'Reset Password',
+                              icon: <Key className="w-3.5 h-3.5 text-muted" />,
+                              onClick: () => handleOpenResetPassword(member)
+                            },
+                            {
+                              label: member.isBlocked ? 'Activate' : 'Deactivate',
+                              icon: <UserCheck className="w-3.5 h-3.5 text-muted" />,
+                              onClick: () => handleToggleStatus(member)
+                            },
+                            {
+                              label: 'Send Email',
+                              icon: <Mail className="w-3.5 h-3.5 text-muted" />,
+                              onClick: () => handleOpenEmail(member)
+                            },
+                            { divider: true },
+                            {
+                              label: 'Delete Member',
+                              icon: <Trash2 className="w-3.5 h-3.5" />,
+                              danger: true,
+                              onClick: () => setDeleteConfirmStaff(member)
+                            }
+                          ]}
+                        />
                       </td>
                     </tr>
                   );

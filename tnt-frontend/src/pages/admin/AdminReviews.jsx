@@ -33,6 +33,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ActionMenu from '../../components/common/ActionMenu';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
 
@@ -318,7 +319,7 @@ export default function AdminReviews() {
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-ink uppercase flex items-center gap-2">
+          <h1 className="text-xl font-extrabold tracking-tight text-ink flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-muted" />
             Reviews & Ratings
           </h1>
@@ -567,13 +568,13 @@ export default function AdminReviews() {
             ) : reviews.length === 0 ? (
               <div className="py-24 text-center space-y-3">
                 <MessageSquare className="w-10 h-10 mx-auto text-line animate-pulse" />
-                <h3 className="font-extrabold text-xs uppercase text-ink">No Reviews Found</h3>
+                <h3 className="font-extrabold text-xs text-ink">No Reviews Found</h3>
                 <p className="text-[10px] text-muted max-w-xs mx-auto">Try refining your searches, filters, or selected date period.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-semibold text-ink text-left border-collapse">
-                  <thead className="bg-stone/50 border-b border-line text-[10px] text-muted uppercase">
+                  <thead className="bg-stone/50 border-b border-line text-[10px] text-muted">
                     <tr>
                       <th className="px-5 py-3 w-10">
                         <input
@@ -717,7 +718,7 @@ export default function AdminReviews() {
                               {r.status === 'PUBLISHED' && (
                                 <button
                                   onClick={() => handleUpdateStatus(r.id, 'REJECTED')}
-                                  className="p-1 rounded bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 transition-colors text-[9px] font-bold uppercase px-1.5"
+                                  className="p-1 rounded bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 transition-colors text-[9px] font-bold px-1.5"
                                   title="Reject"
                                 >
                                   Reject
@@ -726,7 +727,7 @@ export default function AdminReviews() {
                               {r.status === 'REJECTED' && (
                                 <button
                                   onClick={() => handleUpdateStatus(r.id, 'PUBLISHED')}
-                                  className="p-1 rounded bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 transition-colors text-[9px] font-bold uppercase px-1.5"
+                                  className="p-1 rounded bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 transition-colors text-[9px] font-bold px-1.5"
                                   title="Approve"
                                 >
                                   Approve

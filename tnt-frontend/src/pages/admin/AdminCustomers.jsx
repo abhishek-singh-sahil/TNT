@@ -7,6 +7,7 @@ import {
   Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ActionMenu from '../../components/common/ActionMenu';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -289,7 +290,7 @@ export default function AdminCustomers() {
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-black uppercase tracking-tight text-ink flex items-center gap-2">
+          <h1 className="text-xl font-black tracking-tight text-ink flex items-center gap-2">
             <Users className="w-5 h-5 text-muted" /> Customer Management
           </h1>
           <p className="text-xs text-muted mt-0.5">Manage and engage with your customers</p>
@@ -322,7 +323,7 @@ export default function AdminCustomers() {
           )}
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold rounded-lg hover:bg-ink/90 transition-colors shadow-xs"
           >
             <UserPlus className="w-3.5 h-3.5" /> Add Customer
           </button>
@@ -433,13 +434,13 @@ export default function AdminCustomers() {
             ) : customers.length === 0 ? (
               <div className="py-20 text-center space-y-2">
                 <Users className="w-10 h-10 mx-auto text-line animate-pulse" />
-                <h3 className="font-extrabold text-xs uppercase text-ink">No Customers Found</h3>
+                <h3 className="font-extrabold text-xs text-ink">No Customers Found</h3>
                 <p className="text-[10px] text-muted">Try adjusting your search or filters.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left border-collapse">
-                  <thead className="bg-stone/50 border-b border-line text-[10px] text-muted uppercase font-bold">
+                  <thead className="bg-stone/50 border-b border-line text-[10px] text-muted font-bold">
                     <tr>
                       <th className="px-4 py-3 w-10">
                         <input type="checkbox" checked={selectedIds.length === customers.length && customers.length > 0} onChange={toggleAll} className="rounded" />
@@ -510,31 +511,37 @@ export default function AdminCustomers() {
 
                           {/* Actions ⋯ */}
                           <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
-                            <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
-                              <button
-                                onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
-                                className="p-1.5 rounded border border-line text-muted hover:text-ink hover:bg-stone transition-colors"
-                              >
-                                <MoreVertical className="w-3.5 h-3.5" />
-                              </button>
-                              {openMenuId === c.id && (
-                                <div className="absolute right-0 top-full mt-1 w-44 bg-paper border border-line rounded-xl shadow-lg z-50 overflow-hidden py-1">
-                                  <button onClick={() => { openDetails(c); setOpenMenuId(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-stone transition-colors">
-                                    <Eye className="w-3.5 h-3.5 text-muted" /> View Details
-                                  </button>
-                                  <button onClick={() => handleOpenEdit(c)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-stone transition-colors">
-                                    <Edit2 className="w-3.5 h-3.5 text-muted" /> Edit Customer
-                                  </button>
-                                  <button onClick={() => handleOpenEmail(c)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-stone transition-colors">
-                                    <Mail className="w-3.5 h-3.5 text-muted" /> Send Email
-                                  </button>
-                                  <div className="border-t border-line my-1" />
-                                  <button onClick={() => handleToggleStatus(c)} className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-stone transition-colors ${c.isBlocked ? 'text-green-600' : 'text-amber-600'}`}>
-                                    {c.isBlocked ? <><CheckCircle className="w-3.5 h-3.5" /> Activate</> : <><XCircle className="w-3.5 h-3.5" /> Deactivate</>}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            <ActionMenu
+                              trigger={
+                                <button className="p-1.5 rounded border border-line text-muted hover:text-ink hover:bg-stone transition-colors">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </button>
+                              }
+                              items={[
+                                {
+                                  label: 'View Details',
+                                  icon: <Eye className="w-3.5 h-3.5" />,
+                                  onClick: () => openDetails(c)
+                                },
+                                {
+                                  label: 'Edit Customer',
+                                  icon: <Edit2 className="w-3.5 h-3.5" />,
+                                  onClick: () => handleOpenEdit(c)
+                                },
+                                {
+                                  label: 'Send Email',
+                                  icon: <Mail className="w-3.5 h-3.5" />,
+                                  onClick: () => handleOpenEmail(c)
+                                },
+                                { divider: true },
+                                {
+                                  label: c.isBlocked ? 'Activate' : 'Deactivate',
+                                  icon: c.isBlocked ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />,
+                                  danger: !c.isBlocked,
+                                  onClick: () => handleToggleStatus(c)
+                                }
+                              ]}
+                            />
                           </td>
                         </tr>
                       );

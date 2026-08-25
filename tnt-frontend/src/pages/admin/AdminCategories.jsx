@@ -346,7 +346,7 @@ export default function AdminCategories() {
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-black uppercase tracking-tight text-ink flex items-center gap-2">
+          <h1 className="text-xl font-black tracking-tight text-ink flex items-center gap-2">
             <FolderTree className="w-5 h-5 text-muted" /> Categories & Collections
           </h1>
           <p className="text-xs text-muted mt-0.5">Manage product categories and create collections for better organization</p>
@@ -354,13 +354,13 @@ export default function AdminCategories() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => handleOpenCatModal(null)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold rounded-lg hover:bg-ink/90 transition-colors shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" /> Add Category
           </button>
           <button
             onClick={() => handleOpenCollModal(null)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-line text-ink text-xs font-bold uppercase rounded-lg hover:bg-stone transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 border border-line text-ink text-xs font-bold rounded-lg hover:bg-stone transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> Add Collection
           </button>
@@ -374,7 +374,7 @@ export default function AdminCategories() {
         <div className="bg-paper border border-line rounded-2xl shadow-xs overflow-hidden">
           <div className="p-4 border-b border-line flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="font-extrabold text-sm uppercase text-ink">Categories</h2>
+              <h2 className="font-extrabold text-sm text-ink">Categories</h2>
               <span className="bg-stone border border-line px-1.5 py-0.5 rounded text-[9px] font-black text-muted">{categories.length}</span>
             </div>
             <div className="relative w-48">
@@ -396,7 +396,7 @@ export default function AdminCategories() {
               <div className="py-16 text-center text-xs text-muted">No categories found.</div>
             ) : (
               <table className="w-full text-xs text-left">
-                <thead className="bg-stone/40 text-[10px] text-muted font-bold uppercase border-b border-line">
+                <thead className="bg-stone/40 text-[10px] text-muted font-bold border-b border-line">
                   <tr>
                     <th className="px-4 py-2.5">Category</th>
                     <th className="px-4 py-2.5">Products</th>
@@ -443,7 +443,7 @@ export default function AdminCategories() {
           <div className="bg-paper border border-line rounded-2xl shadow-xs overflow-hidden">
             <div className="p-4 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h2 className="font-extrabold text-sm uppercase text-ink">Collections</h2>
+                <h2 className="font-extrabold text-sm text-ink">Collections</h2>
                 <span className="bg-stone border border-line px-1.5 py-0.5 rounded text-[9px] font-black text-muted">{collections.length}</span>
               </div>
               <div className="relative w-48">
@@ -465,7 +465,7 @@ export default function AdminCategories() {
                 <div className="py-16 text-center text-xs text-muted">No collections found.</div>
               ) : (
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-stone/40 text-[10px] text-muted font-bold uppercase border-b border-line">
+                  <thead className="bg-stone/40 text-[10px] text-muted font-bold border-b border-line">
                     <tr>
                       <th className="px-4 py-2.5">Collection</th>
                       <th className="px-4 py-2.5">Products</th>

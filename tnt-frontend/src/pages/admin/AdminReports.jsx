@@ -275,25 +275,25 @@ export default function AdminReports() {
       {/* 5. Page Header & Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-4">
         <div>
-          <h1 className="text-2xl font-black text-ink uppercase tracking-tight">Reports & Analytics</h1>
+          <h1 className="text-2xl font-black text-ink tracking-tight">Reports & Analytics</h1>
           <p className="text-xs text-muted">Insights and reports to help you make better business decisions</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleExportPDF}
-            className="flex-1 sm:flex-initial px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-paper text-xs font-bold uppercase rounded-lg tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-paper text-xs font-bold rounded-lg tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
           >
             <FileText className="w-3.5 h-3.5" /> Export PDF
           </button>
           <button
             onClick={handleExportExcel}
-            className="flex-1 sm:flex-initial px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-paper text-xs font-bold uppercase rounded-lg tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-paper text-xs font-bold rounded-lg tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" /> Export Excel
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex-1 sm:flex-initial px-4 py-2.5 border border-line text-ink text-xs font-bold uppercase rounded-lg hover:bg-stone flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 sm:flex-initial px-4 py-2.5 border border-line text-ink text-xs font-bold rounded-lg hover:bg-stone flex items-center justify-center gap-1.5 transition-all"
           >
             <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
@@ -373,11 +373,11 @@ export default function AdminReports() {
       ) : !reportData ? (
         <div className="p-12 text-center bg-paper border border-line rounded-xl space-y-3 shadow-xs">
           <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto animate-bounce" />
-          <h3 className="font-extrabold text-sm uppercase text-ink">Failed to load Reports</h3>
+          <h3 className="font-extrabold text-sm text-ink">Failed to load Reports</h3>
           <p className="text-xs text-muted max-w-md mx-auto">There was an issue compiling the e-commerce transactions or connecting to the database server.</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 px-5 py-2.5 bg-ink hover:bg-ink/90 text-paper text-xs font-bold uppercase rounded-lg tracking-wider"
+            className="mt-3 px-5 py-2.5 bg-ink hover:bg-ink/90 text-paper text-xs font-bold rounded-lg tracking-wider"
           >
             Retry Connection
           </button>
@@ -389,7 +389,7 @@ export default function AdminReports() {
             {/* 1. Revenue Card */}
             <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">Revenue</span>
+                <span className="text-[10px] font-bold text-muted tracking-widest block">Revenue</span>
                 <span className="text-xl font-black text-ink block">₹{reportData.kpi.revenue.value.toLocaleString()}</span>
                 <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${reportData.kpi.revenue.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {reportData.kpi.revenue.change.startsWith('+') ? '▲' : '▼'} {reportData.kpi.revenue.change} <span className="text-muted font-bold">vs last month</span>
@@ -403,7 +403,7 @@ export default function AdminReports() {
             {/* 2. Orders Card */}
             <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">Orders</span>
+                <span className="text-[10px] font-bold text-muted tracking-widest block">Orders</span>
                 <span className="text-xl font-black text-ink block">{reportData.kpi.orders.value}</span>
                 <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${reportData.kpi.orders.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {reportData.kpi.orders.change.startsWith('+') ? '▲' : '▼'} {reportData.kpi.orders.change} <span className="text-muted font-bold">vs last month</span>
@@ -417,7 +417,7 @@ export default function AdminReports() {
             {/* 3. AOV Card */}
             <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">AOV</span>
+                <span className="text-[10px] font-bold text-muted tracking-widest block">AOV</span>
                 <span className="text-xl font-black text-ink block">₹{Math.round(reportData.kpi.aov.value).toLocaleString()}</span>
                 <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${reportData.kpi.aov.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {reportData.kpi.aov.change.startsWith('+') ? '▲' : '▼'} {reportData.kpi.aov.change} <span className="text-muted font-bold">vs last month</span>
@@ -431,7 +431,7 @@ export default function AdminReports() {
             {/* 4. Refunds Card */}
             <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">Refunds</span>
+                <span className="text-[10px] font-bold text-muted tracking-widest block">Refunds</span>
                 <span className="text-xl font-black text-rose-600 block">₹{reportData.kpi.refunds.value.toLocaleString()}</span>
                 <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${reportData.kpi.refunds.change.startsWith('+') ? 'text-rose-600' : 'text-emerald-600'}`}>
                   {reportData.kpi.refunds.change.startsWith('+') ? '▲' : '▼'} {reportData.kpi.refunds.change} <span className="text-muted font-bold">vs last month</span>
@@ -445,7 +445,7 @@ export default function AdminReports() {
             {/* 5. Discounts Card */}
             <div className="bg-paper border border-line rounded-xl p-5 flex items-center justify-between shadow-xs">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest block">Discounts</span>
+                <span className="text-[10px] font-bold text-muted tracking-widest block">Discounts</span>
                 <span className="text-xl font-black text-ink block">₹{reportData.kpi.discounts.value.toLocaleString()}</span>
                 <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${reportData.kpi.discounts.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {reportData.kpi.discounts.change.startsWith('+') ? '▲' : '▼'} {reportData.kpi.discounts.change} <span className="text-muted font-bold">vs last month</span>
@@ -463,10 +463,10 @@ export default function AdminReports() {
             {/* 11. Sales Report Card */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs">
               <div className="flex justify-between items-center border-b border-line pb-3">
-                <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Sales Report</span>
+                <span className="font-extrabold text-xs text-ink tracking-wider">Sales Report</span>
                 <button 
                   onClick={() => setActiveModal('sales')}
-                  className="text-[9px] font-bold text-indigo-600 uppercase hover:underline"
+                  className="text-[9px] font-bold text-indigo-600 hover:underline"
                 >
                   View Details
                 </button>
@@ -491,10 +491,10 @@ export default function AdminReports() {
             {/* 12. Product Report Card */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs">
               <div className="flex justify-between items-center border-b border-line pb-3">
-                <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Product Report</span>
+                <span className="font-extrabold text-xs text-ink tracking-wider">Product Report</span>
                 <button 
                   onClick={() => setActiveModal('products')}
-                  className="text-[9px] font-bold text-indigo-600 uppercase hover:underline"
+                  className="text-[9px] font-bold text-indigo-600 hover:underline"
                 >
                   View Details
                 </button>
@@ -534,10 +534,10 @@ export default function AdminReports() {
             {/* 15. Customer Report Card */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs">
               <div className="flex justify-between items-center border-b border-line pb-3">
-                <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Customer Report</span>
+                <span className="font-extrabold text-xs text-ink tracking-wider">Customer Report</span>
                 <button 
                   onClick={() => setActiveModal('customers')}
-                  className="text-[9px] font-bold text-indigo-600 uppercase hover:underline"
+                  className="text-[9px] font-bold text-indigo-600 hover:underline"
                 >
                   View Details
                 </button>
@@ -575,10 +575,10 @@ export default function AdminReports() {
             {/* 17. Inventory Report Card */}
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs self-start">
               <div className="flex justify-between items-center border-b border-line pb-3">
-                <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Inventory Report</span>
+                <span className="font-extrabold text-xs text-ink tracking-wider">Inventory Report</span>
                 <button 
                   onClick={() => setActiveModal('inventory')}
-                  className="text-[9px] font-bold text-indigo-600 uppercase hover:underline"
+                  className="text-[9px] font-bold text-indigo-600 hover:underline"
                 >
                   View Details
                 </button>
@@ -619,7 +619,7 @@ export default function AdminReports() {
             <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs lg:col-span-2">
               <div className="flex justify-between items-center border-b border-line pb-3">
                 <div>
-                  <span className="font-extrabold text-xs uppercase text-ink tracking-wider block">Sales Trend</span>
+                  <span className="font-extrabold text-xs text-ink tracking-wider block">Sales Trend</span>
                   <span className="text-[10px] text-muted">Daily Revenue & Orders log</span>
                 </div>
               </div>
@@ -630,7 +630,7 @@ export default function AdminReports() {
                     <XAxis dataKey="label" stroke="#64748b" fontSize={10} />
                     <YAxis yAxisId="left" stroke="#4f46e5" fontSize={10} />
                     <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={10} />
-                    <Tooltip formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name.toUpperCase()]} />
+                    <Tooltip formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name === 'revenue' ? 'Revenue' : name === 'orders' ? 'Orders' : name]} />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2} name="revenue" dot={{ r: 2 }} />
                     <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} name="orders" dot={{ r: 2 }} />
@@ -644,11 +644,11 @@ export default function AdminReports() {
           {/* 21. Top Products Panel Card */}
           <div className="bg-paper border border-line rounded-xl p-5 space-y-4 shadow-xs">
             <div className="flex justify-between items-center border-b border-line pb-3">
-              <span className="font-extrabold text-xs uppercase text-ink tracking-wider">Top Products</span>
+              <span className="font-extrabold text-xs text-ink tracking-wider">Top Products</span>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setProductTab('bestSellers')}
-                  className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all ${
+                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
                     productTab === 'bestSellers' ? 'bg-ink text-paper border-ink' : 'bg-stone/50 border-line text-ink hover:bg-stone'
                   }`}
                 >
@@ -656,7 +656,7 @@ export default function AdminReports() {
                 </button>
                 <button 
                   onClick={() => setProductTab('byRevenue')}
-                  className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all ${
+                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
                     productTab === 'byRevenue' ? 'bg-ink text-paper border-ink' : 'bg-stone/50 border-line text-ink hover:bg-stone'
                   }`}
                 >
@@ -664,7 +664,7 @@ export default function AdminReports() {
                 </button>
                 <button 
                   onClick={() => setProductTab('byQuantity')}
-                  className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all ${
+                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
                     productTab === 'byQuantity' ? 'bg-ink text-paper border-ink' : 'bg-stone/50 border-line text-ink hover:bg-stone'
                   }`}
                 >
@@ -705,8 +705,8 @@ export default function AdminReports() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-paper border border-line rounded-xl p-6 max-w-4xl w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-line pb-3">
-              <span className="font-extrabold text-xs uppercase text-ink tracking-wider">
-                📊 Detailed {activeModal.toUpperCase()} Sheet Analytics
+              <span className="font-extrabold text-xs text-ink tracking-wider">
+                📊 Detailed {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)} Sheet Analytics
               </span>
               <button onClick={() => setActiveModal(null)} className="text-muted hover:text-ink">
                 <X className="w-5 h-5" />
@@ -718,7 +718,7 @@ export default function AdminReports() {
               <div className="space-y-4 text-xs">
                 <p className="text-[10px] text-muted">All active/completed transactions recorded in selected range:</p>
                 <table className="w-full border-collapse border border-line text-left">
-                  <thead className="bg-stone uppercase text-[9px] font-bold text-ink">
+                  <thead className="bg-stone text-[9px] font-bold text-ink">
                     <tr>
                       <th className="border border-line p-3">Metric</th>
                       <th className="border border-line p-3">Report Details</th>
@@ -755,7 +755,7 @@ export default function AdminReports() {
                 <p className="text-[10px] text-muted font-bold">Best & worst performing items ranked by units sold:</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-bold text-indigo-700 uppercase text-[10px] mb-2">Best Sellers list</h4>
+                    <h4 className="font-bold text-indigo-700 text-[10px] mb-2">Best Sellers list</h4>
                     <ul className="space-y-1.5 list-disc list-inside text-muted font-semibold">
                       {reportData?.topProducts.bestSellers.map(p => (
                         <li key={p.id}>{p.name} - {p.unitsSold} sold (₹{Math.round(p.revenue).toLocaleString()})</li>
@@ -763,7 +763,7 @@ export default function AdminReports() {
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-bold text-rose-600 uppercase text-[10px] mb-2">Low Activity Stock products</h4>
+                    <h4 className="font-bold text-rose-600 text-[10px] mb-2">Low Activity Stock products</h4>
                     <div className="text-[10px] text-muted">
                       Total items with zero conversions in current period: <span className="font-bold text-ink">{reportData?.inventoryReport.deadStock} items</span>.
                     </div>
@@ -777,15 +777,15 @@ export default function AdminReports() {
                 <p className="text-[10px] text-muted font-bold">Customer Loyalty & Lifetime value metadata:</p>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 bg-stone/40 border border-line rounded-lg text-center space-y-1">
-                    <span className="block text-[9px] uppercase font-bold text-muted">New Signups</span>
+                    <span className="block text-[9px] font-bold text-muted">New Signups</span>
                     <span className="block text-xl font-black text-ink">{reportData?.customerReport.newCustomers}</span>
                   </div>
                   <div className="p-4 bg-stone/40 border border-line rounded-lg text-center space-y-1">
-                    <span className="block text-[9px] uppercase font-bold text-muted">Returning Users</span>
+                    <span className="block text-[9px] font-bold text-muted">Returning Users</span>
                     <span className="block text-xl font-black text-ink">{reportData?.customerReport.returningCustomers}</span>
                   </div>
                   <div className="p-4 bg-stone/40 border border-line rounded-lg text-center space-y-1">
-                    <span className="block text-[9px] uppercase font-bold text-muted">Estimated CLV</span>
+                    <span className="block text-[9px] font-bold text-muted">Estimated CLV</span>
                     <span className="block text-xl font-black text-ink">₹{reportData?.customerReport.clv.toLocaleString()}</span>
                   </div>
                 </div>
@@ -796,7 +796,7 @@ export default function AdminReports() {
               <div className="space-y-4 text-xs">
                 <p className="text-[10px] text-muted font-bold">Stock levels and reorder parameters:</p>
                 <table className="w-full border-collapse border border-line text-left">
-                  <thead className="bg-stone uppercase text-[9px] font-bold text-ink">
+                  <thead className="bg-stone text-[9px] font-bold text-ink">
                     <tr>
                       <th className="border border-line p-3">Stock Attribute</th>
                       <th className="border border-line p-3">Current Count</th>
@@ -827,7 +827,7 @@ export default function AdminReports() {
             <div className="pt-3 border-t border-line text-right">
               <button 
                 onClick={() => setActiveModal(null)}
-                className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90"
+                className="px-5 py-2.5 bg-ink text-paper text-xs font-bold rounded-lg hover:bg-ink/90"
               >
                 Close Report
               </button>

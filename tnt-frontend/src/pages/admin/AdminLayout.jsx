@@ -68,21 +68,21 @@ export default function AdminLayout() {
       <div className="bg-paper min-h-screen flex items-center justify-center p-6 text-center">
         <div className="bg-stone border border-line rounded-xl p-8 max-w-sm w-full space-y-4">
           <AlertOctagon className="w-12 h-12 text-red-600 mx-auto animate-bounce" />
-          <h2 className="text-base font-extrabold uppercase text-ink tracking-wider font-black">Access Denied</h2>
+          <h2 className="text-base font-extrabold text-ink tracking-wider font-black">Access Denied</h2>
           <p className="text-xs text-muted leading-relaxed font-semibold">You do not have permissions to access the enterprise administration panel.</p>
           <div className="pt-2 space-y-2">
             <Link
               to="/login"
               onClick={() => dispatch(logout())}
-              className="w-full py-3 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded block hover:bg-ink/90 transition-colors"
+              className="w-full py-3 bg-ink text-paper text-xs font-bold tracking-wider rounded block hover:bg-ink/90 transition-colors"
             >
-              SIGN IN AS STAFF
+              Sign In as Staff
             </Link>
             <Link
               to="/"
-              className="w-full py-3 border border-line text-ink text-xs font-bold uppercase tracking-wider rounded block hover:bg-stone transition-colors"
+              className="w-full py-3 border border-line text-ink text-xs font-bold tracking-wider rounded block hover:bg-stone transition-colors"
             >
-              BACK TO STOREFRONT
+              Back to Storefront
             </Link>
           </div>
         </div>
@@ -121,16 +121,16 @@ export default function AdminLayout() {
       <div className="bg-stone min-h-screen flex items-center justify-center p-6 text-center">
         <div className="bg-paper border border-line rounded-xl p-8 max-w-md w-full space-y-4 shadow-sm">
           <AlertOctagon className="w-12 h-12 text-red-600 mx-auto" />
-          <h2 className="text-base font-extrabold uppercase text-ink tracking-wider font-black">403 — Unauthorized Access</h2>
+          <h2 className="text-base font-extrabold text-ink tracking-wider font-black">403 — Unauthorized Access</h2>
           <p className="text-xs text-muted leading-relaxed font-semibold">
             You do not have the required permission <span className="font-mono bg-stone px-1 py-0.5 rounded">"{currentNavItem.permission}"</span> to view this module.
           </p>
           <div className="pt-2">
             <Link
               to="/admin"
-              className="w-full py-3 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded block hover:bg-ink/90 transition-colors shadow-xs"
+              className="w-full py-3 bg-ink text-paper text-xs font-bold tracking-wider rounded block hover:bg-ink/90 transition-colors shadow-xs"
             >
-              GO TO PERMITTED WORKSPACE
+              Go to Permitted Workspace
             </Link>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function AdminLayout() {
 
           {/* Navigation Items */}
           <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-140px)] no-scrollbar">
-            <div className="text-[10px] font-bold text-muted uppercase tracking-wider px-3 mb-2">CMS & OPERATIONS</div>
+            <div className="text-[10px] font-bold text-muted uppercase tracking-wider px-3 mb-2">CMS & Operations</div>
             {navItems.length > 0 ? (
               navItems.map((item) => {
                 const Icon = item.icon;
@@ -239,9 +239,9 @@ export default function AdminLayout() {
             {/* View Live Store */}
             <Link
               to="/"
-              className="text-xs font-bold text-ink hover:underline border border-line px-3.5 py-2 rounded-lg bg-stone/50 hover:bg-stone transition-colors uppercase tracking-wider hidden sm:block"
+              className="text-xs font-bold text-ink hover:underline border border-line px-3.5 py-2 rounded-lg bg-stone/50 hover:bg-stone transition-colors tracking-wider hidden sm:block"
             >
-              VIEW LIVE STORE ↗
+              View Live Store ↗
             </Link>
 
             {/* Notification Bell */}

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { mediaApi } from '../../api/services';
 import toast from 'react-hot-toast';
+import ActionMenu from '../../components/common/ActionMenu';
 
 export default function AdminMediaLibrary() {
   const [assets, setAssets] = useState([]);
@@ -385,7 +386,7 @@ export default function AdminMediaLibrary() {
       {/* 1. Page Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight uppercase text-ink">Media Library</h1>
+          <h1 className="text-xl font-extrabold tracking-tight text-ink">Media Library</h1>
           <p className="text-xs text-muted">Manage and organize all your media files in one place</p>
         </div>
 
@@ -418,7 +419,7 @@ export default function AdminMediaLibrary() {
           {/* Add Media Upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-ink text-paper rounded text-xs font-bold uppercase hover:bg-ink/90 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-ink text-paper rounded text-xs font-bold hover:bg-ink/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Upload Media
@@ -438,7 +439,7 @@ export default function AdminMediaLibrary() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-paper border border-line rounded-xl p-4 space-y-1.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Total Files</span>
+            <span className="text-[10px] font-bold text-muted tracking-wider">Total Files</span>
             <div className="p-1.5 bg-ink/5 rounded-lg text-ink">
               <Folder className="w-4 h-4" />
             </div>
@@ -453,7 +454,7 @@ export default function AdminMediaLibrary() {
 
         <div className="bg-paper border border-line rounded-xl p-4 space-y-1.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Folders</span>
+            <span className="text-[10px] font-bold text-muted tracking-wider">Folders</span>
             <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
               <Folder className="w-4 h-4" />
             </div>
@@ -468,7 +469,7 @@ export default function AdminMediaLibrary() {
 
         <div className="bg-paper border border-line rounded-xl p-4 space-y-1.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Storage Used</span>
+            <span className="text-[10px] font-bold text-muted tracking-wider">Storage Used</span>
             <div className="p-1.5 bg-green-50 text-green-600 rounded-lg">
               <FileDown className="w-4 h-4" />
             </div>
@@ -483,7 +484,7 @@ export default function AdminMediaLibrary() {
 
         <div className="bg-paper border border-line rounded-xl p-4 space-y-1.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">File Types</span>
+            <span className="text-[10px] font-bold text-muted tracking-wider">File Types</span>
             <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
               <ImageIcon className="w-4 h-4" />
             </div>
@@ -751,77 +752,43 @@ export default function AdminMediaLibrary() {
                           {asset.folder || 'tnt'}
                         </span>
 
-                        <div className="relative action-menu-container">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === asset.id ? null : asset.id);
-                            }}
-                            className="p-1 hover:bg-stone rounded text-muted hover:text-ink"
-                          >
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </button>
-
-                          {activeMenuId === asset.id && (
-                            <div className="absolute right-0 bottom-full mb-1 w-32 bg-paper border border-line rounded-lg shadow-lg z-20 py-1 text-xs">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCopyUrl(asset.url, asset.id);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-stone flex items-center gap-1.5 font-bold uppercase text-[9px] tracking-wide text-ink"
-                              >
-                                {copiedId === asset.id ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                                Copy URL
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ActionMenu
+                            trigger={
+                              <button className="p-1 hover:bg-stone rounded text-muted hover:text-ink">
+                                <MoreVertical className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownload(asset);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-stone flex items-center gap-1.5 font-bold uppercase text-[9px] tracking-wide text-ink"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                Download
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openRenameModal(asset);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-stone flex items-center gap-1.5 font-bold uppercase text-[9px] tracking-wide text-ink"
-                              >
-                                <Edit className="w-3 h-3" />
-                                Rename
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openMoveModal(asset);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-stone flex items-center gap-1.5 font-bold uppercase text-[9px] tracking-wide text-ink"
-                              >
-                                <Folder className="w-3 h-3" />
-                                Move
-                              </button>
-                              <hr className="border-line my-1" />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openDeleteModal(asset);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 flex items-center gap-1.5 font-bold uppercase text-[9px] tracking-wide"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                            }
+                            items={[
+                              {
+                                label: 'Copy URL',
+                                icon: copiedId === asset.id ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />,
+                                onClick: () => handleCopyUrl(asset.url, asset.id)
+                              },
+                              {
+                                label: 'Download',
+                                icon: <Download className="w-3.5 h-3.5" />,
+                                onClick: () => handleDownload(asset)
+                              },
+                              {
+                                label: 'Rename',
+                                icon: <Edit className="w-3 h-3" />,
+                                onClick: () => openRenameModal(asset)
+                              },
+                              {
+                                label: 'Move',
+                                icon: <Folder className="w-3 h-3" />,
+                                onClick: () => openMoveModal(asset)
+                              },
+                              { divider: true },
+                              {
+                                label: 'Delete',
+                                icon: <Trash2 className="w-3 h-3" />,
+                                danger: true,
+                                onClick: () => openDeleteModal(asset)
+                              }
+                            ]}
+                          />
                         </div>
                       </div>
                     </div>
