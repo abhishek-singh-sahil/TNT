@@ -23,9 +23,6 @@ export const productApi = {
   getCategories: () => apiClient.get('/categories'),
 };
 
-export const lookbookApi = {
-  getLookbooks: (params) => apiClient.get('/lookbooks', { params }),
-};
 
 export const cmsApi = {
   getHomepageData: () => apiClient.get('/cms/homepage'),
@@ -190,6 +187,13 @@ export const reportsApi = {
 
 export const aiApi = {
   chat: (payload) => apiClient.post('/ai/chat', payload),
+};
+
+export const lookbookApi = {
+  getLookbooks: (params) => apiClient.get('/lookbooks', { params }),
+  createLookbook: (payload) => apiClient.post('/admin/lookbooks', payload),
+  updateLookbook: (id, payload) => apiClient.put(`/admin/lookbooks/${id}`, payload),
+  deleteLookbook: (id) => apiClient.delete(`/admin/lookbooks/${id}`),
 };
 
 

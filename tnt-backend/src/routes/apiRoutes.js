@@ -8,7 +8,7 @@ import { getProducts, getProductBySlug, createProduct, deleteProduct, getColors,
 import { createOrder, getUserOrders, getOrderTracking, createReturnRequest, cancelOrder } from '../controllers/orderController.js';
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../controllers/addressController.js';
 import { getMyReviews, createReview, updateReview, deleteReview } from '../controllers/reviewController.js';
-import { getLookbooks } from '../controllers/lookbookController.js';
+import { getLookbooks, createLookbook, updateLookbook, deleteLookbook } from '../controllers/lookbookController.js';
 import {
   getHomepageData,
   updateHomepageCMS,
@@ -188,6 +188,9 @@ router.get('/sizes', getSizes);
 router.get('/collections', getCollections);
 router.post('/collections', protect, requirePermission('create_categories'), createCollection);
 router.get('/lookbooks', getLookbooks);
+router.post('/admin/lookbooks', protect, createLookbook);
+router.put('/admin/lookbooks/:id', protect, updateLookbook);
+router.delete('/admin/lookbooks/:id', protect, deleteLookbook);
 
 // ─── Dynamic Homepage CMS ─────────────────────────────────────────────────────
 router.get(
