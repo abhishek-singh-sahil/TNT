@@ -555,13 +555,26 @@ export default function ProductDetail() {
                   <tr><td className="p-2 font-bold text-ink">M</td><td className="p-2">42"</td><td className="p-2">29"</td><td className="p-2">21"</td></tr>
                   <tr><td className="p-2 font-bold text-ink">L</td><td className="p-2">44"</td><td className="p-2">30"</td><td className="p-2">22"</td></tr>
                   <tr><td className="p-2 font-bold text-ink">XL</td><td className="p-2">46"</td><td className="p-2">31"</td><td className="p-2">23"</td></tr>
-                  <tr><td className="p-2 font-bold text-ink">XXL</td><td className="p-2">48"</td><td className="p-2">32"</td><td className="p-2">24"</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
       )}
+
+      {/* Fixed Mobile Bottom CTA Bar (< 768px) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-paper/95 backdrop-blur-md border-t border-line p-3 px-4 flex items-center gap-3 shadow-lg">
+        <div>
+          <span className="text-xs font-black text-ink block">{currencySymbol}{pPrice.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-emerald-600 block">In Stock</span>
+        </div>
+        <button
+          onClick={handleAddToCart}
+          className="flex-1 py-3 bg-ink text-paper text-xs font-black uppercase tracking-wider rounded-xl shadow-sm flex items-center justify-center gap-2"
+        >
+          <ShoppingBag className="w-4 h-4" /> ADD TO CART
+        </button>
+      </div>
 
     </div>
   );

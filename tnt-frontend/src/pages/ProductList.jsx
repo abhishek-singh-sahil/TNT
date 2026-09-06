@@ -402,12 +402,28 @@ export default function ProductList() {
       {isDrawerOpen && (
         <div className="fixed inset-0 z-[100] flex lg:hidden">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setIsDrawerOpen(false)} />
-          <div className="relative w-full max-w-[300px] bg-paper border-r border-line h-full flex flex-col shadow-2xl z-10">
+          <div className="relative w-full max-w-[320px] bg-paper border-r border-line h-full flex flex-col shadow-2xl z-10">
             <div className="flex justify-between items-center px-5 py-4 border-b border-line flex-shrink-0">
               <span className="font-black text-xs uppercase text-ink tracking-widest">Filters</span>
               <button onClick={() => setIsDrawerOpen(false)} className="text-muted hover:text-ink"><X className="w-5 h-5" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5"><SidebarFilters {...filterProps} /></div>
+            <div className="flex-1 overflow-y-auto p-5 pb-20"><SidebarFilters {...filterProps} /></div>
+            <div className="p-4 border-t border-line bg-paper flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold uppercase text-ink hover:bg-stone transition-colors"
+              >
+                Clear All
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyFilters}
+                className="flex-1 py-3 bg-ink text-paper rounded-xl text-xs font-bold uppercase hover:bg-black transition-colors"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         </div>
       )}

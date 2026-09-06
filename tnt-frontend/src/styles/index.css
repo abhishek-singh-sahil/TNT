@@ -156,29 +156,58 @@ html.dark .bg-stone\/20 {
   background-color: rgba(39, 39, 42, 0.2) !important;
 }
 
-/* Global Select Dropdown Styling Overrides */
+/* Custom Animated Curved Select Dropdowns */
 select {
   appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
-  background-position: right 0.65rem center !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23111111' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-position: right 0.85rem center !important;
   background-repeat: no-repeat !important;
-  background-size: 1.1em 1.1em !important;
-  padding-right: 2.25rem !important;
-  border-radius: 0.5rem !important; /* smooth rounded-lg corner */
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  background-size: 1.15em 1.15em !important;
+  padding: 0.65rem 2.6rem 0.65rem 1rem !important;
+  border-radius: 0.75rem !important; /* smooth curved-xl corner */
+  border: 1.5px solid #e5e5e5 !important;
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  min-height: 2.75rem !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+select:hover {
+  border-color: #111111 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-1px) !important;
 }
 
 select:focus {
   border-color: #111111 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+select option {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.5rem !important;
 }
 
 /* Dark mode select overrides */
 html.dark select {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23f4f4f5' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
   border-color: #3f3f46 !important;
   background-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+
+html.dark select option {
+  background-color: #18181b !important;
   color: #f4f4f5 !important;
 }
 
