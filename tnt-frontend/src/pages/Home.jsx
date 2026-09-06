@@ -102,7 +102,7 @@ export default function Home() {
   return (
     <div className="bg-paper min-h-screen pb-16">
       
-      {/* 1. Hero Banner Slider (Clean & Crisp - No Blur Mask) */}
+      {/* 1. Hero Banner Slider (Mobile Optimized Framing & Clean Typography) */}
       {heroSlides && heroSlides.length > 0 && (
         <section className="relative w-full border-b border-line">
           <Swiper
@@ -110,56 +110,56 @@ export default function Home() {
             autoplay={{ delay: 5000, disableOnInteraction: false }}
             pagination={{ clickable: true }}
             navigation
-            className="h-[420px] sm:h-[500px] lg:h-[540px] w-full"
+            className="h-[460px] sm:h-[500px] lg:h-[540px] w-full"
           >
             {heroSlides.map((slide) => (
               <SwiperSlide key={slide.id}>
-                <div className="relative w-full h-full bg-stone overflow-hidden flex items-center">
+                <div className="relative w-full h-full bg-stone overflow-hidden flex items-end sm:items-center pb-8 sm:pb-0">
                   <img
                     src={slide.image || "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600"}
                     alt={slide.title}
-                    className="absolute inset-0 w-full h-full object-cover object-center"
+                    className="absolute inset-0 w-full h-full object-cover object-[75%_20%] sm:object-center"
                   />
-                  {/* Clean text backdrop gradient on left only */}
-                  <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-paper/90 via-paper/60 to-transparent pointer-events-none" />
+                  {/* Clean text backdrop gradient: bottom-up on phone, left-to-right on desktop */}
+                  <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-paper/95 via-paper/70 to-transparent pointer-events-none" />
 
-                  <div className="max-w-[1400px] mx-auto px-6 sm:px-12 relative z-10 w-full">
-                    <div className="max-w-md sm:max-w-xl text-ink space-y-4">
+                  <div className="max-w-[1400px] mx-auto px-4 sm:px-12 relative z-10 w-full">
+                    <div className="max-w-[310px] sm:max-w-xl text-ink space-y-2.5 sm:space-y-4">
                       {slide.subtitle && (
                         <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-muted block">
                           {slide.subtitle}
                         </span>
                       )}
                       
-                      <h1 className="text-3xl sm:text-6xl font-black uppercase tracking-tight leading-none text-ink font-display">
+                      <h1 className="text-2xl sm:text-5xl font-black uppercase tracking-tight leading-tight text-ink font-display">
                         {slide.title.split('\n').map((line, index) => (
                           <span key={index} className="block">{line}</span>
                         ))}
                       </h1>
                       
-                      <p className="text-xs sm:text-sm font-semibold text-muted leading-relaxed max-w-sm">
+                      <p className="text-[11px] sm:text-sm font-semibold text-muted leading-relaxed max-w-[280px] sm:max-w-sm">
                         Premium fabrics. Timeless designs. Made for the bold.
                       </p>
                       
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 pt-0.5">
                         <div className="flex text-ink">
                           {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-ink text-ink" />
+                            <Star key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-ink text-ink" />
                           ))}
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-ink">12,000+ Happy Customers</span>
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-ink">12,000+ Happy Customers</span>
                       </div>
 
-                      <div className="pt-2 flex flex-row gap-3">
+                      <div className="pt-2 flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                         <Link
                           to={slide.link || '/products'}
-                          className="px-6 py-3.5 bg-ink text-paper text-xs font-black uppercase tracking-widest hover:bg-black transition-colors rounded shadow-xs text-center"
+                          className="px-5 py-3 sm:py-3.5 bg-ink text-paper text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-black transition-colors rounded-xl shadow-xs text-center"
                         >
                           {slide.buttonText || 'SHOP COLLECTION'}
                         </Link>
                         <Link
                           to="/collections"
-                          className="px-6 py-3.5 border border-ink text-ink text-xs font-black uppercase tracking-widest hover:bg-stone transition-colors rounded text-center"
+                          className="px-5 py-3 sm:py-3.5 border border-ink text-ink text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-stone transition-colors rounded-xl text-center bg-paper/60 backdrop-blur-xs sm:bg-transparent"
                         >
                           EXPLORE NOW
                         </Link>
