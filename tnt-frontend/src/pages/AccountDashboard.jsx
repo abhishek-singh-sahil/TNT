@@ -298,7 +298,7 @@ export default function AccountDashboard() {
               {/* Order Card Body */}
               <div className="p-5 divide-y divide-line">
                 {order.items?.map((item) => {
-                  const itemImage = item.product?.images?.[0]?.url || item.product?.coverImage || '/placeholder.png';
+                  const itemImage = item.image || item.productVariant?.image || item.productVariant?.product?.images?.[0]?.url || item.productVariant?.product?.coverImage || item.product?.images?.[0]?.url || item.product?.coverImage || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300';
                   return (
                     <div key={item.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0">
@@ -1147,7 +1147,7 @@ export default function AccountDashboard() {
             <div className="divide-y divide-line border border-line rounded-xl overflow-hidden bg-paper">
               {recentOrders.length > 0 ? recentOrders.map(o => {
                 const firstItem = o.items?.[0] || {};
-                const itemImage = firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage;
+                const itemImage = firstItem.image || firstItem.productVariant?.image || firstItem.productVariant?.product?.images?.[0]?.url || firstItem.productVariant?.product?.coverImage || firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300';
                 const statusLabel = o.orderStatus === "DELIVERED" ? "Delivered" : o.orderStatus === "SHIPPED" ? "Shipped" : o.orderStatus === "OUT_FOR_DELIVERY" ? "Out for Delivery" : o.orderStatus === "PROCESSING" ? "Processing" : (o.orderStatus || "").replace(/_/g, " ");
                 const statusColor = o.orderStatus === "DELIVERED" ? "text-green-600" : ["SHIPPED", "IN_TRANSIT"].includes(o.orderStatus) ? "text-blue-600" : o.orderStatus === "OUT_FOR_DELIVERY" ? "text-amber-600" : "text-muted";
                 return (

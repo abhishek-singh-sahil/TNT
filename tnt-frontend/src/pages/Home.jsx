@@ -15,6 +15,16 @@ const DynamicIcon = ({ name, className }) => {
   return <IconComponent className={className} />;
 };
 
+const CATEGORY_FALLBACK_IMAGES = {
+  'Men': 'https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=600&auto=format&fit=crop&q=80',
+  'Women': 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80',
+  'Accessories': 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&auto=format&fit=crop&q=80',
+  'Acid washed': 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=600&auto=format&fit=crop&q=80',
+  'Oversized': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop&q=80',
+  'T-Shirts': 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop&q=80',
+  'Hoodies': 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80',
+};
+
 export default function Home() {
   const [cmsData, setCmsData] = useState({
     heroSlides: [],
@@ -82,17 +92,17 @@ export default function Home() {
   }
 
   const activeCategories = dbCategories.length > 0 ? dbCategories : [
-    { id: '1', name: 'OVERSIZED', slug: 'oversized-t-shirts', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600' },
-    { id: '2', name: 'HOODIES', slug: 'hoodies', image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600' },
-    { id: '3', name: 'T-SHIRTS', slug: 't-shirts', image: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600' },
-    { id: '4', name: 'GRAPHIC TEES', slug: 'graphic-tees', image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600' },
-    { id: '5', name: 'ACCESSORIES', slug: 'accessories', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600' },
+    { id: '1', name: 'OVERSIZED', slug: 'oversized-t-shirts' },
+    { id: '2', name: 'HOODIES', slug: 'hoodies' },
+    { id: '3', name: 'T-SHIRTS', slug: 't-shirts' },
+    { id: '4', name: 'GRAPHIC TEES', slug: 'graphic-tees' },
+    { id: '5', name: 'ACCESSORIES', slug: 'accessories' },
   ];
 
   return (
     <div className="bg-paper min-h-screen pb-16">
       
-      {/* 1. Dynamic Hero Banner Slider */}
+      {/* 1. Hero Banner Slider (Clean & Crisp - No Blur Mask) */}
       {heroSlides && heroSlides.length > 0 && (
         <section className="relative w-full border-b border-line">
           <Swiper
@@ -100,7 +110,7 @@ export default function Home() {
             autoplay={{ delay: 5000, disableOnInteraction: false }}
             pagination={{ clickable: true }}
             navigation
-            className="h-[400px] sm:h-[480px] lg:h-[520px] w-full"
+            className="h-[420px] sm:h-[500px] lg:h-[540px] w-full"
           >
             {heroSlides.map((slide) => (
               <SwiperSlide key={slide.id}>
@@ -110,7 +120,8 @@ export default function Home() {
                     alt={slide.title}
                     className="absolute inset-0 w-full h-full object-cover object-center"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-paper/90 via-paper/50 to-transparent pointer-events-none" />
+                  {/* Clean text backdrop gradient on left only */}
+                  <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-paper/90 via-paper/60 to-transparent pointer-events-none" />
 
                   <div className="max-w-[1400px] mx-auto px-6 sm:px-12 relative z-10 w-full">
                     <div className="max-w-md sm:max-w-xl text-ink space-y-4">
@@ -181,7 +192,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* 3. Shop By Category */}
+      {/* 3. Shop By Category (Resolves Real DB Images) */}
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-14">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-sm font-black uppercase tracking-wider text-ink">SHOP BY CATEGORY</h2>
@@ -191,17 +202,20 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {activeCategories.slice(0, 5).map((cat) => (
-            <Link key={cat.id} to={'/collections/' + (cat.slug || cat.name.toLowerCase())} className="relative aspect-[3/4] rounded-xl overflow-hidden group border border-line shadow-xs">
-              <img src={cat.image || cat.cardImage || cat.bannerImage || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600'} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-paper">
-                <h3 className="font-black text-sm uppercase tracking-wider">{cat.name}</h3>
-                <span className="text-[10px] font-bold tracking-wider mt-1 flex items-center gap-1 opacity-90 group-hover:underline">
-                  Shop Now <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
-            </Link>
-          ))}
+          {activeCategories.slice(0, 5).map((cat) => {
+            const catImage = cat.homepageImage || cat.cardImage || cat.image || cat.bannerImage || CATEGORY_FALLBACK_IMAGES[cat.name] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600';
+            return (
+              <Link key={cat.id} to={'/collections/' + (cat.slug || cat.name.toLowerCase())} className="relative aspect-[3/4] rounded-xl overflow-hidden group border border-line shadow-xs">
+                <img src={catImage} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-paper">
+                  <h3 className="font-black text-sm uppercase tracking-wider">{cat.name}</h3>
+                  <span className="text-[10px] font-bold tracking-wider mt-1 flex items-center gap-1 opacity-90 group-hover:underline">
+                    Shop Now <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -223,32 +237,32 @@ export default function Home() {
         </div>
       )}
 
-      {/* 5. Promotions Banners Grid */}
+      {/* 5. Promotions Banners Grid (Clean & Sharp - No Foggy Blur) */}
       {promotions && promotions.length > 0 && (
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {promotions.map((promo) => (
+            {promotions.map((promo, idx) => (
               <div
                 key={promo.id}
                 className="relative h-64 rounded-xl overflow-hidden p-6 flex flex-col justify-between shadow-sm border border-line"
-                style={{ backgroundColor: promo.bgColor || '#111111' }}
+                style={{ backgroundColor: promo.bgColor || (idx === 0 ? '#111111' : '#f8f8f8') }}
               >
                 {promo.imageUrl && (
-                  <img src={promo.imageUrl} alt={promo.title} className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                  <img src={promo.imageUrl} alt={promo.title} className="absolute inset-0 w-full h-full object-cover" />
                 )}
-                <div className="relative z-10 space-y-1 text-paper">
+                <div className={'relative z-10 space-y-1 ' + (promo.imageUrl || idx === 0 ? 'text-paper' : 'text-ink')}>
                   <h3 className="text-lg font-black uppercase">{promo.title}</h3>
-                  <p className="text-[10px] text-paper/80 leading-relaxed">{promo.subtitle}</p>
+                  <p className="text-[10px] opacity-90 leading-relaxed">{promo.subtitle}</p>
                 </div>
                 <div className="relative z-10 space-y-2">
                   {promo.couponCode && (
-                    <div className="text-[9px] font-bold text-ink bg-paper rounded px-2 py-0.5 w-fit">
+                    <div className="text-[9px] font-bold text-ink bg-paper rounded px-2 py-0.5 w-fit border border-line">
                       Code: <span className="font-mono font-extrabold">{promo.couponCode}</span>
                     </div>
                   )}
                   <Link
                     to={promo.buttonUrl || '/products'}
-                    className="text-xs font-black uppercase tracking-wider text-paper flex items-center gap-1 hover:underline"
+                    className={'text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline ' + (promo.imageUrl || idx === 0 ? 'text-paper' : 'text-ink')}
                   >
                     {promo.buttonText || 'SHOP NOW'} <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
