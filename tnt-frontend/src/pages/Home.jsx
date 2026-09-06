@@ -102,7 +102,7 @@ export default function Home() {
   return (
     <div className="bg-paper min-h-screen pb-16">
       
-      {/* 1. Hero Banner Slider (Mobile Optimized Framing & Clean Typography) */}
+      {/* 1. Hero Banner Slider (Upper Text Shifted & Light Clean Mask) */}
       {heroSlides && heroSlides.length > 0 && (
         <section className="relative w-full border-b border-line">
           <Swiper
@@ -114,17 +114,17 @@ export default function Home() {
           >
             {heroSlides.map((slide) => (
               <SwiperSlide key={slide.id}>
-                <div className="relative w-full h-full bg-stone overflow-hidden flex items-end sm:items-center pb-8 sm:pb-0">
+                <div className="relative w-full h-full bg-stone overflow-hidden flex items-start sm:items-center pt-8 sm:pt-0">
                   <img
                     src={slide.image || "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600"}
                     alt={slide.title}
                     className="absolute inset-0 w-full h-full object-cover object-[75%_20%] sm:object-center"
                   />
-                  {/* Clean text backdrop gradient: bottom-up on phone, left-to-right on desktop */}
-                  <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-paper/95 via-paper/70 to-transparent pointer-events-none" />
+                  {/* Ultra light subtle text backdrop gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-paper/60 via-paper/20 to-transparent pointer-events-none" />
 
-                  <div className="max-w-[1400px] mx-auto px-4 sm:px-12 relative z-10 w-full">
-                    <div className="max-w-[310px] sm:max-w-xl text-ink space-y-2.5 sm:space-y-4">
+                  <div className="max-w-[1400px] mx-auto px-5 sm:px-12 relative z-10 w-full">
+                    <div className="max-w-[310px] sm:max-w-xl text-ink space-y-2 sm:space-y-4">
                       {slide.subtitle && (
                         <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-muted block">
                           {slide.subtitle}
@@ -159,7 +159,7 @@ export default function Home() {
                         </Link>
                         <Link
                           to="/collections"
-                          className="px-5 py-3 sm:py-3.5 border border-ink text-ink text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-stone transition-colors rounded-xl text-center bg-paper/60 backdrop-blur-xs sm:bg-transparent"
+                          className="px-5 py-3 sm:py-3.5 border border-ink text-ink text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-stone transition-colors rounded-xl text-center bg-paper/80 backdrop-blur-xs sm:bg-transparent"
                         >
                           EXPLORE NOW
                         </Link>
