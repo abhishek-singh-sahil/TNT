@@ -45,9 +45,9 @@ export default function Cart() {
 
   useEffect(() => {
     // Fetch real products for "YOU MIGHT ALSO LIKE"
-    productApi.getProducts({ limit: 10 })
+    productApi.getProducts({ limit: 12 })
       .then((res) => {
-        const list = res.data?.products || res.data || [];
+        const list = res.products || res.data?.products || res.data || (Array.isArray(res) ? res : []);
         setRecommendedProducts(Array.isArray(list) ? list : []);
       })
       .catch((err) => console.error('Failed to load recommended products', err));
@@ -442,7 +442,7 @@ export default function Cart() {
               className="flex gap-5 overflow-x-auto scrollbar-none pb-4 scroll-smooth"
             >
               {recommendedProducts.map((product) => {
-                const img = product.image || product.images?.[0]?.url || '';
+                const img = product.image || product.images?.[0]?.url || product.coverImage || '';
                 const pPrice = product.price || product.basePrice || 0;
                 const isWish = wishlistItems.some(w => w.productId === product.id);
 
