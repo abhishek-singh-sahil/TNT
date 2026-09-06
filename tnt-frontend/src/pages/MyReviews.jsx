@@ -10,50 +10,10 @@ import toast from 'react-hot-toast';
 export default function MyReviews() {
   const { user } = useSelector((state) => state.auth);
   const [reviewsData, setReviewsData] = useState({
-    stats: { total: 12, published: 11, pending: 1, rejected: 0 },
-    reviews: [
-      {
-        id: 'rev-1',
-        productName: 'Oversized Minimal Tee',
-        variant: 'Jet Black | M',
-        rating: 5,
-        title: 'Excellent quality and perfect fit!',
-        comment: 'The fabric is super soft and breathable. The oversized fit is just how I like it. Definitely ordering more colors!',
-        date: '20 May 2024',
-        status: 'PUBLISHED',
-        helpfulCount: 12,
-        unhelpfulCount: 0,
-        image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&auto=format&fit=crop&q=80',
-      },
-      {
-        id: 'rev-2',
-        productName: 'Essential Beige Hoodie',
-        variant: 'Beige | L',
-        rating: 4,
-        title: 'Great hoodie overall',
-        comment: 'Very comfortable and warm. Love the color and material. The fit is slightly oversized which I like.',
-        date: '15 May 2024',
-        status: 'PUBLISHED',
-        helpfulCount: 8,
-        unhelpfulCount: 0,
-        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=300&auto=format&fit=crop&q=80',
-      },
-      {
-        id: 'rev-3',
-        productName: 'TNT Classic Cap',
-        variant: 'Jet Black | One Size',
-        rating: 3,
-        title: 'Good cap but size adjustment could be better',
-        comment: 'The quality is good and it looks premium. The strap could be improved for a better fit.',
-        date: '10 May 2024',
-        status: 'PENDING',
-        helpfulCount: 0,
-        unhelpfulCount: 0,
-        image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=300&auto=format&fit=crop&q=80',
-      },
-    ],
+    stats: { total: 0, published: 0, pending: 0, rejected: 0 },
+    reviews: [],
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [sortBy, setSortBy] = useState('newest');
 
@@ -63,15 +23,20 @@ export default function MyReviews() {
       try {
         setLoading(true);
         const res = await reviewApi.getMyReviews();
-        if (res.success && res.reviews && res.reviews.length > 0) {
+        if (res.success && res.reviews) {
+          const allRev = res.reviews;
+          const pub = allRev.filter(r => r.status === 'APPROVED' || r.status === 'PUBLISHED').length;
+          const pend = allRev.filter(r => r.status === 'PENDING').length;
+          const rej = allRev.filter(r => r.status === 'REJECTED').length;
+
           setReviewsData({
-            stats: res.stats || { total: res.reviews.length, published: res.reviews.filter(r => r.status === 'APPROVED' || r.status === 'PUBLISHED').length, pending: res.reviews.filter(r => r.status === 'PENDING').length, rejected: res.reviews.filter(r => r.status === 'REJECTED').length },
-            reviews: res.reviews.map(r => ({
+            stats: { total: allRev.length, published: pub, pending: pend, rejected: rej },
+            reviews: allRev.map(r => ({
               id: r.id,
-              productName: r.product?.name || 'Streetwear Item',
-              variant: 'Standard',
+              productName: r.product?.name || 'Product',
+              variant: r.variantInfo || 'Standard',
               rating: r.rating || 5,
-              title: r.title || 'Great product!',
+              title: r.title || 'Review',
               comment: r.comment || '',
               date: new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
               status: (r.status === 'APPROVED' ? 'PUBLISHED' : r.status) || 'PUBLISHED',
@@ -106,7 +71,14 @@ export default function MyReviews() {
 
   const { stats, reviews } = reviewsData;
 
-  const filteredReviews = reviews.filter(r => {
+  let sortedReviews = [...reviews];
+  if (sortBy === 'rating-high') {
+    sortedReviews.sort((a, b) => b.rating - a.rating);
+  } else if (sortBy === 'rating-low') {
+    sortedReviews.sort((a, b) => a.rating - b.rating);
+  }
+
+  const filteredReviews = sortedReviews.filter(r => {
     if (activeTab === 'PUBLISHED') return r.status === 'PUBLISHED' || r.status === 'APPROVED';
     if (activeTab === 'PENDING') return r.status === 'PENDING';
     if (activeTab === 'REJECTED') return r.status === 'REJECTED';
@@ -217,15 +189,27 @@ export default function MyReviews() {
             </div>
 
             {/* Review Cards List */}
-            <div className="space-y-4">
-              {filteredReviews.length === 0 ? (
-                <div className="border border-line rounded-xl p-12 text-center space-y-3 bg-paper">
-                  <MessageSquare className="w-8 h-8 text-muted/40 mx-auto" />
-                  <p className="text-xs font-bold text-ink uppercase">No reviews in this status</p>
-                  <p className="text-[11px] text-muted max-w-sm mx-auto">Submit product reviews after receiving your orders to see them here.</p>
-                </div>
-              ) : (
-                filteredReviews.map((rev) => (
+            {loading ? (
+              <div className="py-16 text-center text-xs text-muted">
+                Loading your reviews...
+              </div>
+            ) : filteredReviews.length === 0 ? (
+              <div className="border border-line rounded-xl p-12 text-center space-y-3 bg-paper">
+                <MessageSquare className="w-8 h-8 text-muted/40 mx-auto" />
+                <h3 className="text-xs font-bold text-ink uppercase">NO REVIEWS YET</h3>
+                <p className="text-[11px] text-muted max-w-sm mx-auto">
+                  You haven't written any product reviews yet. Reviews can be submitted after completing an order.
+                </p>
+                <Link
+                  to="/account/orders"
+                  className="px-6 py-2.5 bg-ink text-paper text-xs font-bold uppercase tracking-wider rounded inline-block"
+                >
+                  VIEW YOUR ORDERS
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredReviews.map((rev) => (
                   <div key={rev.id} className="border border-line rounded-xl p-5 bg-paper space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       
@@ -304,9 +288,9 @@ export default function MyReviews() {
 
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
 
           </main>
         </div>
