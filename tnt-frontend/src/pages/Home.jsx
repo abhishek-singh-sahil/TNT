@@ -2,496 +2,387 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/product/ProductCard';
 import { cmsApi, productApi } from '../api/services';
-import { ArrowRight, Star, Instagram, Heart, ArrowLeft } from 'lucide-react';
-import * as Icons from 'lucide-react';
+import { ArrowRight, Star, Instagram, ChevronLeft, ChevronRight, ShieldCheck, Truck, RotateCcw, Lock, Headset, Award, Shirt, Heart } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 
-const DynamicIcon = ({ name, className }) => {
-  const IconComponent = Icons[name] || Icons.HelpCircle;
-  return <IconComponent className={className} />;
-};
-
 export default function Home() {
-  const [cmsData, setCmsData] = useState({
-    heroSlides: [],
-    announcement: '',
-    trustFeatures: [],
-    promotions: [],
-    brandStory: null,
-    reviews: [],
-    instagramPics: [],
-    whyChooseUs: [],
-    categories: [],
-    newArrivals: [],
-  });
+  const [cmsData, setCmsData] = useState(null);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [arrivalsIndex, setArrivalsIndex] = useState(0);
-  const [bestSellers, setBestSellers] = useState([]);
-  const [trendingProducts, setTrendingProducts] = useState([]);
 
   useEffect(() => {
-    async function fetchHomeCMS() {
+    async function loadData() {
       try {
-        const [res, productsRes] = await Promise.all([
+        const [cmsRes, productsRes] = await Promise.all([
           cmsApi.getHomepageData(),
-          productApi.getProducts({ limit: 100 })
+          productApi.getProducts({ limit: 20 })
         ]);
-        
-        if (res.success && res.data) {
-          setCmsData(res.data);
+        if (cmsRes.success && cmsRes.data) {
+          setCmsData(cmsRes.data);
         }
         if (productsRes.success && productsRes.products) {
-          setBestSellers(productsRes.products.filter(p => p.isBestSeller).slice(0, 4));
-          setTrendingProducts(productsRes.products.filter(p => p.isTrending).slice(0, 4));
+          setProducts(productsRes.products);
         }
       } catch (err) {
-        console.error('Failed to load dynamic homepage CMS:', err);
+        console.error('Failed to load homepage data:', err);
       } finally {
         setLoading(false);
       }
     }
-    fetchHomeCMS();
+    loadData();
   }, []);
 
-  const {
-    heroSlides,
-    trustFeatures,
-    categories,
-    newArrivals,
-    promotions,
-    brandStory,
-    reviews,
-    instagramPics,
-    whyChooseUs,
-  } = cmsData;
+  const heroSlides = cmsData?.heroSlides?.length > 0 ? cmsData.heroSlides : [
+    {
+      id: 1,
+      subtitle: 'NEW COLLECTION',
+      title: 'DEFINE YOUR EDGE.',
+      image: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=1600&auto=format&fit=crop&q=80',
+      link: '/collections',
+      buttonText: 'SHOP COLLECTION'
+    }
+  ];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-ink border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const categoryCards = [
+    { name: 'OVERSIZED', link: '/collections/oversized', img: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600' },
+    { name: 'HOODIES', link: '/collections/hoodies', img: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600' },
+    { name: 'T-SHIRTS', link: '/collections/t-shirts', img: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600' },
+    { name: 'GRAPHIC TEES', link: '/collections/graphic-tees', img: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600' },
+    { name: 'ACCESSORIES', link: '/accessories', img: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600' },
+  ];
+
+  const sampleProducts = products.length > 0 ? products.slice(0, 6) : [
+    { id: '1', name: 'Oversized Minimal Tee', price: 1499, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500' }] },
+    { id: '2', name: 'Essential Beige Hoodie', price: 2199, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500' }] },
+    { id: '3', name: 'Signature Back Print Tee', price: 1649, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=500' }] },
+    { id: '4', name: 'Classic White Tee', price: 1299, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500' }] },
+    { id: '5', name: 'Washed Grey Tee', price: 1299, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=500' }] },
+    { id: '6', name: 'Minimal Black Tee', price: 1299, isNewArrival: true, images: [{ url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=500' }] },
+  ];
+
+  const testimonials = cmsData?.reviews?.length > 0 ? cmsData.reviews : [
+    { id: 1, name: 'Rahul Sharma', text: '"The quality is insane! The fabric, the fit everything is perfect. TNT is my new favorite."', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' },
+    { id: 2, name: 'Aayush Mehta', text: '"Super comfortable and stylish. The oversized fit is on point! Highly recommended!"', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100' },
+    { id: 3, name: 'Sneha Verma', text: '"Fast delivery, great packaging and premium quality. 10/10 shopping experience."', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' },
+    { id: 4, name: 'Arjun Malhotra', text: '"The best oversized tees I have ever owned. Worth every penny."', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
+  ];
 
   return (
     <div className="bg-paper min-h-screen pb-16">
       
-      {/* 1. Dynamic Premium Hero Banner Slider */}
-      {heroSlides && heroSlides.length > 0 && (
-        <section className="relative w-full border-b border-line">
-          <Swiper
-            modules={[Autoplay, Pagination, Navigation]}
-            autoplay={{ delay: 5000, disableOnInteraction: false }}
-            pagination={{ clickable: true }}
-            navigation
-            className="h-[380px] sm:h-[450px] lg:h-[500px] w-full"
-          >
-            {heroSlides.map((slide) => (
-              <SwiperSlide key={slide.id}>
-                <div className="relative w-full h-full bg-stone overflow-hidden flex items-center">
-                  {/* Background Image of Models */}
-                  <img
-                    src={slide.image || "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600"}
-                    alt={slide.title}
-                    className="absolute inset-0 w-full h-full object-cover object-center animate-in fade-in zoom-in duration-1000"
-                  />
-                  
-                  {/* Premium Gradient Overlay for readability on mobile */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-paper/90 via-paper/20 to-transparent sm:from-paper/60 sm:via-transparent pointer-events-none" />
+      {/* 1. Hero Banner Slider */}
+      <section className="relative w-full overflow-hidden border-b border-line bg-stone/20" style={{ minHeight: 460 }}>
+        <Swiper
+          modules={[Autoplay, Pagination, Navigation]}
+          autoplay={{ delay: 5000, disableOnInteraction: false }}
+          pagination={{ clickable: true }}
+          navigation
+          className="w-full h-full"
+          style={{ minHeight: 460 }}
+        >
+          {heroSlides.map((slide, idx) => (
+            <SwiperSlide key={idx}>
+              <div className="relative w-full h-[460px] md:h-[540px] flex items-center overflow-hidden">
+                <img
+                  src={slide.image}
+                  alt={slide.title}
+                  className="absolute right-0 top-0 h-full w-full lg:w-3/5 object-cover object-top"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-paper via-paper/90 to-transparent lg:via-paper/70" />
 
-                  {/* Left Floating Content Panel */}
-                  <div className="container-tnt relative z-10 w-full px-4 sm:px-12 lg:px-20">
-                    <div className="max-w-md sm:max-w-xl text-ink space-y-3.5 sm:space-y-5">
-                      {slide.subtitle && (
-                        <span className="text-[9px] sm:text-xs font-bold uppercase tracking-widest text-ink/75 block">
-                          {slide.subtitle}
-                        </span>
-                      )}
-                      
-                      <h1 className="text-2xl sm:text-6xl font-extrabold uppercase tracking-tight leading-none text-ink font-display">
-                        {slide.title.split('\n').map((line, index) => (
-                          <span key={index} className="block">{line}</span>
-                        ))}
-                      </h1>
-                      
-                      <p className="text-[10px] sm:text-sm font-semibold text-muted leading-relaxed max-w-[170px] sm:max-w-sm">
-                        Premium fabrics. Timeless designs. Made for the bold.
-                      </p>
-                      
-                      {/* Happy Customer rating strip */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 pt-0.5">
-                        <div className="flex text-ink">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-ink text-ink" />
-                          ))}
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-ink/80">12,000+ Happy Customers</span>
-                      </div>
-
-                      {/* Buttons (Stacked on mobile, side-by-side on desktop) */}
-                      <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row gap-2.5 sm:gap-4 max-w-[170px] sm:max-w-none">
-                        <Link
-                          to={slide.link || '/products'}
-                          className="px-4 py-2 sm:px-6 sm:py-3.5 bg-ink text-paper text-[9px] sm:text-xs font-extrabold uppercase tracking-widest hover:bg-black transition-colors rounded shadow-xs text-center"
-                        >
-                          {slide.buttonText || 'SHOP COLLECTION'}
-                        </Link>
-                        <Link
-                          to="/collections"
-                          className="px-4 py-2 sm:px-6 sm:py-3.5 border border-ink text-ink text-[9px] sm:text-xs font-extrabold uppercase tracking-widest hover:bg-stone transition-colors rounded text-center"
-                        >
-                          EXPLORE NOW
-                        </Link>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        </section>
-      )}
-
-      {/* Spacing reduced from pt-12 space-y-20 to pt-6 space-y-8 */}
-      <div className="container-tnt pt-6 space-y-8">
-        
-        {/* 2. Trust Features strip (2x2 grid on mobile, last full-width) */}
-        {trustFeatures && trustFeatures.length > 0 && (
-          <section className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 border-b border-line pb-8 items-center text-center">
-            {trustFeatures.map((feat, i) => (
-              <div
-                key={feat.id}
-                className={`space-y-1 flex flex-col items-center relative ${
-                  i === 4 ? 'col-span-2 md:col-span-1 pt-2 md:pt-0 border-t border-line/40 md:border-none' : ''
-                }`}
-              >
-                {/* Thin vertical separator for desktop */}
-                {i > 0 && i < 4 && <div className="hidden md:block absolute left-0 top-1/4 bottom-1/4 w-[1px] bg-line" />}
-                <DynamicIcon name={feat.icon} className="w-5 h-5 text-ink mb-0.5" />
-                <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-ink block">{feat.title}</span>
-                <p className="text-[9px] sm:text-[10px] text-muted max-w-[150px] font-semibold leading-tight">{feat.subtitle}</p>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* 3. Shop by Category (Horizontal Scroll on Mobile) */}
-        {categories && categories.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between border-b border-line pb-3 mb-6">
-              <div>
-                <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">CATEGORIES</span>
-                <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
-                  SHOP BY CATEGORY
-                </h2>
-              </div>
-              <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
-                VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            {/* Horizontal scroll container bleeding to edges on all devices */}
-            <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-              {categories.map((cat) => (
-                <Link
-                  key={cat.id}
-                  to={`/collections/${cat.slug}`}
-                  className="group relative w-[160px] sm:w-[220px] md:w-[260px] shrink-0 aspect-[3/4] rounded-lg overflow-hidden border border-line bg-stone block shadow-xs"
-                >
-                  <img src={cat.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-end p-4 text-paper space-y-1">
-                    <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider">{cat.name}</span>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-paper/80 uppercase tracking-widest group-hover:underline flex items-center gap-1">
-                      Shop Now <ArrowRight className="w-3 h-3" />
+                <div className="max-w-[1400px] mx-auto px-6 md:px-12 w-full relative z-10">
+                  <div className="max-w-xl space-y-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted block">
+                      {slide.subtitle || 'NEW COLLECTION'}
                     </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+                    <h1 className="text-4xl sm:text-6xl font-black text-ink uppercase leading-[1.02] tracking-tight">
+                      {slide.title || 'DEFINE YOUR EDGE.'}
+                    </h1>
+                    <p className="text-xs sm:text-sm text-muted max-w-sm leading-relaxed font-medium">
+                      Premium fabrics. Timeless designs. Made for the bold.
+                    </p>
 
-        {/* 4. New Arrivals (3-per-row grid on Mobile, paginated slider on Desktop) */}
-        {newArrivals && newArrivals.length > 0 && (() => {
-          const totalArrivalsPages = Math.ceil(Math.min(newArrivals.length, 24) / 6);
-          const handleNextArrivals = () => {
-            setArrivalsIndex((prev) => (prev + 1) % totalArrivalsPages);
-          };
-          const handlePrevArrivals = () => {
-            setArrivalsIndex((prev) => (prev - 1 + totalArrivalsPages) % totalArrivalsPages);
-          };
-          return (
-            <section>
-              <div className="flex items-center justify-between border-b border-line pb-3 mb-6">
-                <div>
-                  <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">LATEST DROPS</span>
-                  <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
-                    NEW ARRIVALS
-                  </h2>
-                </div>
-                <div className="flex items-center gap-4">
-                  {/* Arrow controls for desktop pagination */}
-                  <div className="hidden md:flex items-center gap-1.5">
-                    <button
-                      onClick={handlePrevArrivals}
-                      disabled={totalArrivalsPages <= 1}
-                      className="p-1.5 border border-line rounded hover:bg-stone text-ink transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={handleNextArrivals}
-                      disabled={totalArrivalsPages <= 1}
-                      className="p-1.5 border border-line rounded hover:bg-stone text-ink transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
-                    VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Mobile View (Grid of 2 rows, 3 items per row for total 6 products) */}
-              <div className="grid grid-cols-3 gap-2.5 md:hidden">
-                {newArrivals.slice(0, 6).map((p) => (
-                  <div key={p.id} className="min-w-0">
-                    <ProductCard product={p} />
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop View (Shows 6 at a time with fade-in slide animation) */}
-              <div className="hidden md:grid md:grid-cols-6 gap-6 transition-all duration-300">
-                {newArrivals.slice(arrivalsIndex * 6, (arrivalsIndex * 6) + 6).map((p) => (
-                  <div key={p.id} className="animate-in fade-in slide-in-from-right-3 duration-300">
-                    <ProductCard product={p} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          );
-        })()}
-
-        {/* Best Sellers Section */}
-        {bestSellers.length > 0 && (
-          <section className="space-y-6">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div>
-                <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">STREETWEAR HIGHLIGHTS</span>
-                <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
-                  BEST SELLERS
-                </h2>
-              </div>
-              <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
-                VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {bestSellers.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 5. Promotional Cards (2 Columns side-by-side, 3rd wide on Mobile) */}
-        {promotions && promotions.length > 0 && (
-          <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {promotions.map((promo, idx) => (
-              <div
-                key={promo.id}
-                style={{ backgroundColor: idx === 0 ? '#111111' : idx === 1 ? '#F4EFEB' : '#EAECEE' }}
-                className={`border border-line rounded-lg p-5 relative overflow-hidden flex flex-col justify-between h-64 md:h-72 group shadow-xs ${
-                  idx === 0 ? 'text-paper' : 'text-ink'
-                } ${
-                  idx === 2 ? 'col-span-2 md:col-span-1' : 'col-span-1'
-                }`}
-              >
-                {/* Image overlay shifted right */}
-                {promo.imageUrl && (
-                  <img
-                    src={promo.imageUrl}
-                    alt=""
-                    className="absolute right-0 bottom-0 h-40 w-36 md:h-48 md:w-44 object-cover object-top opacity-85 group-hover:scale-105 transition-transform duration-500 pointer-events-none"
-                  />
-                )}
-
-                <div className="space-y-1.5 relative z-10 max-w-[120px] sm:max-w-[170px]">
-                  <span className={`text-[9px] font-extrabold uppercase tracking-widest block ${idx === 0 ? 'text-yellow-400' : 'text-muted'}`}>
-                    {promo.subtitle}
-                  </span>
-                  <h3 className="font-extrabold text-sm sm:text-lg uppercase tracking-tight leading-snug">
-                    {promo.title}
-                  </h3>
-                  <p className={`text-[9px] leading-snug font-semibold ${idx === 0 ? 'text-paper/85' : 'text-muted'}`}>
-                    {promo.description || 'Lightweight. Breathable.'}
-                  </p>
-                </div>
-
-                <div className="relative z-10 space-y-2 pt-2">
-                  {promo.couponCode && (
-                    <div className="text-[9px] font-bold text-ink bg-paper border border-line rounded px-2 py-0.5 w-fit">
-                      Code: <span className="font-mono font-extrabold">{promo.couponCode}</span>
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="flex text-ink">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-3.5 h-3.5 fill-ink text-ink" />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-ink">12,000+ Happy Customers</span>
                     </div>
-                  )}
-                  <Link
-                    to={promo.buttonUrl || '/products'}
-                    className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider hover:underline ${
-                      idx === 0 ? 'text-paper' : 'text-ink'
-                    }`}
-                  >
-                    {promo.buttonText || 'SHOP NOW'} <ArrowRight className="w-3 h-3" />
-                  </Link>
+
+                    <div className="pt-3 flex items-center gap-3">
+                      <Link
+                        to={slide.link || '/collections'}
+                        className="px-6 py-3.5 bg-ink text-paper text-xs font-black uppercase tracking-widest rounded hover:bg-ink/90 transition-all shadow-xs"
+                      >
+                        {slide.buttonText || 'SHOP COLLECTION'}
+                      </Link>
+                      <Link
+                        to="/products"
+                        className="px-6 py-3.5 border border-line text-ink text-xs font-black uppercase tracking-widest rounded hover:bg-stone transition-all"
+                      >
+                        EXPLORE NOW
+                      </Link>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </section>
+
+      {/* 2. Trust Strip (5 items) */}
+      <div className="border-b border-line bg-paper py-5">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-line">
+            <div className="flex items-center gap-3 p-2">
+              <Truck className="w-5 h-5 text-ink flex-shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold uppercase text-ink">FREE SHIPPING</p>
+                <p className="text-[10px] text-muted">On orders above ₹1999</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-2 pl-4">
+              <Award className="w-5 h-5 text-ink flex-shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold uppercase text-ink">PREMIUM QUALITY</p>
+                <p className="text-[10px] text-muted">Heavyweight. Durable. Built to last</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-2 pl-4">
+              <RotateCcw className="w-5 h-5 text-ink flex-shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold uppercase text-ink">EASY RETURNS</p>
+                <p className="text-[10px] text-muted">14-day return policy</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-2 pl-4">
+              <Lock className="w-5 h-5 text-ink flex-shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold uppercase text-ink">SECURE PAYMENTS</p>
+                <p className="text-[10px] text-muted">100% safe & secure</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-2 pl-4">
+              <Headset className="w-5 h-5 text-ink flex-shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold uppercase text-ink">CUSTOMER SUPPORT</p>
+                <p className="text-[10px] text-muted">We're here to help</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Shop by Category */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-14">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-sm font-black uppercase tracking-wider text-ink">SHOP BY CATEGORY</h2>
+          <Link to="/collections" className="text-xs font-black uppercase text-ink hover:opacity-70 flex items-center gap-1">
+            VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {categoryCards.map((cat, idx) => (
+            <Link key={idx} to={cat.link} className="relative aspect-[3/4] rounded-xl overflow-hidden group border border-line shadow-xs">
+              <img src={cat.img} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-paper">
+                <h3 className="font-black text-sm uppercase tracking-wider">{cat.name}</h3>
+                <span className="text-[10px] font-bold tracking-wider mt-1 flex items-center gap-1 opacity-90 group-hover:underline">
+                  Shop Now <ArrowRight className="w-3 h-3" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. New Arrivals Section */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-10 border-t border-line">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-sm font-black uppercase tracking-wider text-ink">NEW ARRIVALS</h2>
+          <Link to="/new-arrivals" className="text-xs font-black uppercase text-ink hover:opacity-70 flex items-center gap-1">
+            VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {sampleProducts.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </div>
+
+      {/* 5. Three Banner Grid */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Card 1: Summer '24 */}
+          <div className="relative h-64 rounded-xl overflow-hidden bg-ink text-paper p-6 flex flex-col justify-between shadow-sm">
+            <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600" alt="Summer 24" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+            <div className="relative z-10 space-y-1">
+              <h3 className="text-lg font-black uppercase">SUMMER '24 COLLECTION</h3>
+              <p className="text-[10px] text-paper/80 leading-relaxed">Lightweight. Breathable. Made for the heat.</p>
+            </div>
+            <Link to="/collections" className="relative z-10 text-xs font-black uppercase tracking-wider text-paper flex items-center gap-1 hover:underline">
+              SHOP NOW <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Card 2: 10% Off First Order */}
+          <div className="relative h-64 rounded-xl overflow-hidden bg-stone/60 border border-line p-6 flex flex-col justify-between shadow-sm">
+            <div className="space-y-1">
+              <h3 className="text-lg font-black uppercase text-ink">GET 10% OFF ON YOUR FIRST ORDER</h3>
+              <p className="text-xs text-muted font-semibold pt-1">Use Code: <span className="font-mono font-black text-ink">WELCOME10</span></p>
+            </div>
+            <Link to="/products" className="text-xs font-black uppercase tracking-wider text-ink flex items-center gap-1 hover:underline">
+              SHOP NOW <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Card 3: Bundle & Save */}
+          <div className="relative h-64 rounded-xl overflow-hidden bg-stone/40 border border-line p-6 flex flex-col justify-between shadow-sm">
+            <div className="space-y-1">
+              <h3 className="text-lg font-black uppercase text-ink">BUNDLE & SAVE</h3>
+              <p className="text-[11px] text-muted font-bold pt-1">BUY 2 GET 15% OFF<br />BUY 3 GET 20% OFF</p>
+            </div>
+            <Link to="/collections" className="text-xs font-black uppercase tracking-wider text-ink flex items-center gap-1 hover:underline">
+              SHOP COLLECTION <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 6. Our Story Feature Section */}
+      <div className="bg-stone/20 border-y border-line py-16">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-4">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">OUR STORY</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-ink uppercase leading-tight">
+                BUILT DIFFERENT.<br />MADE FOR EVERYONE.
+              </h2>
+              <p className="text-xs text-muted leading-relaxed max-w-md">
+                TNT was born from a simple idea – create clothing that speaks confidence, comfort, and individuality. From premium fabrics to minimal designs, every detail is crafted to be your everyday edge.
+              </p>
+              <div className="pt-2">
+                <Link to="/about" className="px-6 py-3 bg-ink text-paper text-xs font-black uppercase tracking-widest rounded hover:bg-ink/90 transition-colors inline-block">
+                  LEARN MORE ABOUT US
+                </Link>
+              </div>
+            </div>
+
+            <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-line bg-stone shadow-sm">
+              <img
+                src="https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=1200"
+                alt="TNT Story Models"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 7. What Our Customers Say */}
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-sm font-black uppercase tracking-wider text-ink">WHAT OUR CUSTOMERS SAY</h2>
+          <Link to="/account/reviews" className="text-xs font-black uppercase text-ink hover:opacity-70 flex items-center gap-1">
+            VIEW ALL REVIEWS <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {testimonials.map((rev) => (
+            <div key={rev.id} className="border border-line rounded-xl p-5 bg-paper space-y-3 shadow-xs">
+              <div className="flex text-amber-400">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-xs text-ink/80 leading-relaxed italic">{rev.text}</p>
+              <div className="flex items-center gap-2.5 pt-2 border-t border-line/50">
+                <img src={rev.avatar} alt={rev.name} className="w-7 h-7 rounded-full object-cover border border-line" />
+                <span className="text-xs font-extrabold text-ink">{rev.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 8. Follow Us @TNT.Clothing */}
+      <div className="border-t border-line bg-paper py-14">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+          <h2 className="text-sm font-black uppercase tracking-wider text-ink mb-6 text-center">FOLLOW US @TNT.CLOTHING</h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400',
+              'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400',
+              'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400',
+              'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=400',
+              'https://images.unsplash.com/photo-1544816155-12df9643f363?w=400',
+            ].map((img, i) => (
+              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-line group relative">
+                <img src={img} alt="TNT Insta" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
               </div>
             ))}
-          </section>
-        )}
-
-        {/* 6. Brand Story Section */}
-        {brandStory && (
-          <section className="bg-stone border border-line rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-6 items-center shadow-xs">
-            <div className="p-6 sm:p-12 space-y-4">
-              <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest block">OUR STORY</span>
-              <h2 className="text-2xl font-extrabold uppercase text-ink tracking-tight font-display">
-                {brandStory.heading}
-              </h2>
-              <p className="text-xs text-muted leading-relaxed font-semibold">
-                {brandStory.description}
-              </p>
-              {brandStory.buttonText && (
-                <Link
-                  to={brandStory.buttonUrl || '/about'}
-                  className="inline-flex items-center gap-2 px-5 py-3 bg-ink text-paper text-[10px] font-bold uppercase tracking-widest rounded hover:bg-black transition-colors"
-                >
-                  {brandStory.buttonText}
-                </Link>
-              )}
-            </div>
-            <div className="h-64 md:h-[400px] w-full">
-              <img src={brandStory.imageUrl} alt="Brand Story" className="w-full h-full object-cover" />
-            </div>
-          </section>
-        )}
-
-        {/* Trending Products Section */}
-        {trendingProducts.length > 0 && (
-          <section className="space-y-6">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div>
-                <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest">ON THE RISE</span>
-                <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-tight text-ink mt-0.5">
-                  TRENDING NOW
-                </h2>
-              </div>
-              <Link to="/products" className="text-[10px] sm:text-xs font-bold text-ink uppercase tracking-wider hover:underline flex items-center gap-1">
-                VIEW ALL <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {trendingProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 7. Customer Reviews / Testimonials */}
-        {reviews && reviews.length > 0 && (
-          <section className="border-t border-line pt-8">
-            <div className="text-center mb-6">
-              <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest block mb-0.5">REVIEWS</span>
-              <h2 className="text-lg font-extrabold text-ink uppercase tracking-wider">WHAT OUR CUSTOMERS SAY</h2>
-            </div>
-
-            {/* Horizontal scroll on mobile reviews */}
-            <div className="flex overflow-x-auto no-scrollbar gap-4 md:grid md:grid-cols-4 md:gap-6 pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-              {reviews.map((t) => (
-                <div key={t.id} className="w-[240px] shrink-0 md:w-auto md:shrink bg-stone border border-line rounded-lg p-5 space-y-3 shadow-xs">
-                  <div className="flex text-yellow-500">
-                    {[...Array(t.rating || 5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
-                    ))}
-                  </div>
-                  <p className="text-xs text-ink/90 leading-relaxed font-semibold">"{t.content}"</p>
-                  <div className="pt-2 border-t border-line/60 flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-ink text-paper text-[10px] font-bold flex items-center justify-center">
-                      {t.name[0]}
-                    </div>
-                    <span className="font-bold text-ink text-xs">{t.name}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 8. Instagram Gallery (3 columns on mobile!) */}
-        {instagramPics && instagramPics.length > 0 && (
-          <section className="space-y-4">
-            <div className="text-center">
-              <span className="text-[9px] font-extrabold uppercase text-muted tracking-widest block mb-0.5">SOCIAL FEED</span>
-              <h2 className="text-lg font-extrabold text-ink uppercase tracking-wider">FOLLOW US @TNT.CLOTHING</h2>
-            </div>
-
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
-              {instagramPics.slice(0, 5).map((pic) => (
-                <a
-                  key={pic.id}
-                  href={pic.link || 'https://instagram.com'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative aspect-square rounded overflow-hidden border border-line bg-stone block shadow-xs"
-                >
-                  <img src={pic.imageUrl} alt={pic.caption || ""} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-paper">
-                    <Instagram className="w-5 h-5" />
-                  </div>
-                </a>
-              ))}
-              
-              {/* Instagram Action Button Card */}
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-ink rounded aspect-square flex flex-col items-center justify-center text-center p-2 hover:bg-black transition-colors text-paper space-y-1 border border-line"
-              >
-                <Instagram className="w-5 h-5 text-paper" />
-                <span className="text-[8px] font-extrabold uppercase tracking-widest block">VIEW ON INSTAGRAM</span>
-              </a>
-            </div>
-          </section>
-        )}
-
-        {/* 9. Why Choose Us */}
-        {whyChooseUs && whyChooseUs.length > 0 && (
-          <section className="border-t border-line pt-8 space-y-6 text-center">
-            <h2 className="text-xs font-extrabold uppercase text-ink tracking-widest">WHY CHOOSE TNT?</h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 items-start">
-              {whyChooseUs.map((item, i) => (
-                <div key={item.id} className={`space-y-2 flex flex-col items-center ${
-                  i === 4 ? 'col-span-2 md:col-span-1 pt-2 md:pt-0' : ''
-                }`}>
-                  <div className="w-10 h-10 bg-stone border border-line rounded-full flex items-center justify-center mb-0.5 shadow-xs text-ink">
-                    <DynamicIcon name={item.icon} className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-ink block leading-snug">{item.title}</span>
-                  <p className="text-[8px] text-muted max-w-[130px] font-semibold leading-tight">{item.subtitle}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
+              className="aspect-square rounded-lg bg-ink text-paper flex flex-col items-center justify-center p-4 text-center hover:bg-ink/90 transition-colors"
+            >
+              <Instagram className="w-6 h-6 mb-2" />
+              <span className="text-[10px] font-black uppercase tracking-wider">VIEW ON INSTAGRAM</span>
+            </a>
+          </div>
+        </div>
       </div>
+
+      {/* 9. Why Choose TNT? (5 items) */}
+      <div className="border-t border-line bg-stone/20 py-12">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+          <h2 className="text-xs font-black uppercase tracking-widest text-ink text-center mb-8">WHY CHOOSE TNT?</h2>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 text-center">
+            <div className="space-y-1 flex flex-col items-center">
+              <Shirt className="w-5 h-5 text-ink mb-1" />
+              <h4 className="text-xs font-black text-ink uppercase">240 GSM PREMIUM COTTON</h4>
+              <p className="text-[10px] text-muted">Soft, breathable & durable</p>
+            </div>
+            <div className="space-y-1 flex flex-col items-center">
+              <Award className="w-5 h-5 text-ink mb-1" />
+              <h4 className="text-xs font-black text-ink uppercase">OVERSIZED PERFECT FIT</h4>
+              <p className="text-[10px] text-muted">Designed for comfort & style</p>
+            </div>
+            <div className="space-y-1 flex flex-col items-center">
+              <RotateCcw className="w-5 h-5 text-ink mb-1" />
+              <h4 className="text-xs font-black text-ink uppercase">FADE & SHRINK RESISTANT</h4>
+              <p className="text-[10px] text-muted">Built to last, wash after wash</p>
+            </div>
+            <div className="space-y-1 flex flex-col items-center">
+              <Star className="w-5 h-5 text-ink mb-1" />
+              <h4 className="text-xs font-black text-ink uppercase">MADE IN INDIA</h4>
+              <p className="text-[10px] text-muted">Proudly designed & made</p>
+            </div>
+            <div className="space-y-1 flex flex-col items-center col-span-2 sm:col-span-1">
+              <Award className="w-5 h-5 text-ink mb-1" />
+              <h4 className="text-xs font-black text-ink uppercase">TRUSTED BY 12,000+</h4>
+              <p className="text-[10px] text-muted">Happy customers across India</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

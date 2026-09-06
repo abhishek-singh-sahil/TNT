@@ -20,6 +20,7 @@ import Contact from './pages/Contact';
 import EmptyStates from './pages/EmptyStates';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AboutUs from './pages/AboutUs';
 
 // Admin Enterprise Suite
 import AdminLayout from './pages/admin/AdminLayout';
@@ -138,7 +139,7 @@ export default function App() {
 
         {/* Informational Pages */}
         <Route path="/info/:pageKey" element={<InfoPages />} />
-        <Route path="/about" element={<Navigate to="/info/about" replace />} />
+        <Route path="/about" element={<AboutUs />} />
         <Route path="/size-guide" element={<Navigate to="/info/size-guide" replace />} />
         <Route path="/faqs" element={<Navigate to="/info/faqs" replace />} />
         <Route path="/terms" element={<Navigate to="/info/terms" replace />} />
