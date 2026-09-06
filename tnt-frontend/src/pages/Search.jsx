@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectCurrencySymbol } from '../store/settingsSlice';
-import ProductCard from '../components/product/ProductCard';
-import TrustStrip from '../components/common/TrustStrip';
-import { productApi } from '../api/services';
-import { ChevronDown, PackageX, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { selectCurrencySymbol } from "../store/settingsSlice";
+import ProductCard from "../components/product/ProductCard";
+import TrustStrip from "../components/common/TrustStrip";
+import { productApi } from "../api/services";
+import { ChevronDown, PackageX, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 
 function FiltersContent({
   dbCategories,
@@ -29,6 +29,17 @@ function FiltersContent({
   const currencySymbol = useSelector(selectCurrencySymbol);
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center border-b border-line pb-3">
+        <h2 className="text-xs font-black uppercase text-ink tracking-wider">FILTERS</h2>
+        <button
+          type="button"
+          onClick={handleClearFilters}
+          className="text-[10px] font-bold text-muted underline hover:text-ink"
+        >
+          Clear All
+        </button>
+      </div>
+
       {showSort && (
         <div className="space-y-2">
           <span className="block text-[10px] font-bold uppercase text-ink">Sort Products By</span>
@@ -47,7 +58,7 @@ function FiltersContent({
 
       {/* Category checklist */}
       <div className="space-y-2">
-        <span className="block text-[10px] font-bold uppercase text-ink mb-2">Category</span>
+        <span className="block text-[10px] font-black uppercase text-ink mb-2">Category</span>
         <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
           {dbCategories.map(cat => {
             const isChecked = selectedCategories.includes(cat.slug);
@@ -71,7 +82,7 @@ function FiltersContent({
 
       {/* Gender checklist */}
       <div className="space-y-2 border-t border-line pt-4">
-        <span className="block text-[10px] font-bold uppercase text-ink mb-2">Gender</span>
+        <span className="block text-[10px] font-black uppercase text-ink mb-2">Gender</span>
         <div className="space-y-1.5">
           {['Men', 'Women', 'Unisex'].map(gender => {
             const isChecked = selectedGenders.includes(gender);
@@ -95,7 +106,7 @@ function FiltersContent({
       {/* Size blocks */}
       <div className="space-y-2 border-t border-line pt-4">
         <div className="flex justify-between items-center mb-2">
-          <span className="block text-[10px] font-bold uppercase text-ink">Size</span>
+          <span className="block text-[10px] font-black uppercase text-ink">Size</span>
           <span className="text-[9px] font-bold text-muted underline cursor-pointer hover:text-ink">Size Guide</span>
         </div>
         <div className="grid grid-cols-5 gap-1.5">
@@ -121,7 +132,7 @@ function FiltersContent({
 
       {/* Color swatches */}
       <div className="space-y-2 border-t border-line pt-4">
-        <span className="block text-[10px] font-bold uppercase text-ink mb-2">Color</span>
+        <span className="block text-[10px] font-black uppercase text-ink mb-2">Color</span>
         <div className="flex flex-wrap gap-2">
           {dbColors.map(color => {
             const isSelected = selectedColor === color.name;
@@ -150,7 +161,7 @@ function FiltersContent({
 
       {/* Price Range slider */}
       <div className="space-y-2 border-t border-line pt-4">
-        <span className="block text-[10px] font-bold uppercase text-ink mb-1">Price Range</span>
+        <span className="block text-[10px] font-black uppercase text-ink mb-1">Price Range</span>
         <input
           type="range"
           min={399}
@@ -170,14 +181,14 @@ function FiltersContent({
         <button
           type="button"
           onClick={handleApplyFilters}
-          className="py-2.5 bg-ink text-paper text-[10px] font-bold uppercase rounded tracking-wider hover:bg-ink/95"
+          className="py-2.5 bg-ink text-paper text-[10px] font-extrabold uppercase rounded tracking-wider hover:bg-ink/95"
         >
           Apply Filters
         </button>
         <button
           type="button"
           onClick={handleClearFilters}
-          className="py-2.5 border border-line text-ink text-[10px] font-bold uppercase rounded tracking-wider hover:bg-stone/50"
+          className="py-2.5 border border-line text-ink text-[10px] font-extrabold uppercase rounded tracking-wider hover:bg-stone/50"
         >
           Clear All
         </button>
@@ -190,16 +201,13 @@ export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
 
-  // Products & Loading
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbCategories, setDbCategories] = useState([]);
   const [dbColors, setDbColors] = useState([]);
 
-  // Sidebar Drawer state for mobile only
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Filters State (default priceCap is 5000)
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedGenders, setSelectedGenders] = useState([]);
   const [selectedSize, setSelectedSize] = useState(null);
@@ -207,10 +215,8 @@ export default function Search() {
   const [priceCap, setPriceCap] = useState(5000);
   const [selectedSort, setSelectedSort] = useState('newest');
 
-  // Quick Tab Filter Pill (All, Men, Women, Unisex)
   const [quickGenderFilter, setQuickGenderFilter] = useState('All');
 
-  // Load More pagination
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const limit = 10;
@@ -299,38 +305,28 @@ export default function Search() {
     }, 50);
   };
 
-  // Category Toggle
   const toggleCategory = (slugVal) => {
     setSelectedCategories(prev =>
       prev.includes(slugVal) ? prev.filter(s => s !== slugVal) : [...prev, slugVal]
     );
   };
 
-  // Gender Toggle
   const toggleGender = (genderVal) => {
     setSelectedGenders(prev =>
       prev.includes(genderVal) ? prev.filter(g => g !== genderVal) : [...prev, genderVal]
     );
   };
 
-  // Get active display list filtered locally by quick tab filters
   const getFilteredProducts = () => {
     if (quickGenderFilter === 'All') return products;
-    if (quickGenderFilter === 'Men') {
-      return products.filter(p => p.genderMen);
-    }
-    if (quickGenderFilter === 'Women') {
-      return products.filter(p => p.genderWomen);
-    }
-    if (quickGenderFilter === 'Unisex') {
-      return products.filter(p => p.genderMen && p.genderWomen);
-    }
+    if (quickGenderFilter === 'Men') return products.filter(p => p.genderMen);
+    if (quickGenderFilter === 'Women') return products.filter(p => p.genderWomen);
+    if (quickGenderFilter === 'Unisex') return products.filter(p => p.genderMen && p.genderWomen);
     return products;
   };
 
   const activeProducts = getFilteredProducts();
 
-  // Quick counts
   const allCount = products.length;
   const menCount = products.filter(p => p.genderMen && !p.genderWomen).length;
   const womenCount = products.filter(p => p.genderWomen && !p.genderMen).length;
@@ -349,8 +345,8 @@ export default function Search() {
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          {/* DESKTOP SIDEBAR FILTERS (Visible on lg devices and up) */}
-          <div className="hidden lg:block w-[260px] shrink-0 border border-line rounded-xl p-5 bg-paper">
+          {/* DESKTOP SIDEBAR FILTERS */}
+          <div className="hidden lg:block w-[240px] shrink-0 p-1">
             <FiltersContent
               dbCategories={dbCategories}
               dbColors={dbColors}
@@ -375,16 +371,15 @@ export default function Search() {
           <div className="flex-1 space-y-6 w-full">
             
             {/* Header and Sorting */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-4">
               <div>
                 <h1 className="text-xl font-extrabold text-ink uppercase tracking-tight">
-                  SEARCH RESULTS FOR "{queryParam.toUpperCase()}"
+                  SEARCH RESULTS FOR "{queryParam.toUpperCase() || 'PRODUCTS'}"
                 </h1>
-                <span className="text-xs text-muted font-bold">{activeProducts.length} items found</span>
+                <span className="text-xs text-muted font-semibold">{activeProducts.length} items found</span>
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Mobile Filter Drawer Toggle Button (Visible only on mobile/tablet) */}
                 <button
                   onClick={() => setIsDrawerOpen(true)}
                   className="flex lg:hidden items-center gap-2 px-4 py-2 border border-line rounded text-xs font-bold text-ink hover:bg-stone/50 bg-paper uppercase"
@@ -410,7 +405,7 @@ export default function Search() {
             </div>
 
             {/* Quick gender filters pills */}
-            <div className="flex gap-2 border-b border-line pb-4 overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 pb-2 overflow-x-auto no-scrollbar">
               {[
                 { name: 'All', count: allCount },
                 { name: 'Men', count: menCount },
@@ -423,8 +418,8 @@ export default function Search() {
                     key={tab.name}
                     type="button"
                     onClick={() => setQuickGenderFilter(tab.name)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 ${
-                      isActive ? 'bg-ink text-paper' : 'bg-stone/50 text-ink hover:bg-stone'
+                    className={`px-4 py-1.5 rounded text-xs font-bold transition-all shrink-0 ${
+                      isActive ? 'bg-ink text-paper' : 'bg-stone/60 text-ink hover:bg-stone'
                     }`}
                   >
                     {tab.name} ({tab.count})
@@ -456,7 +451,7 @@ export default function Search() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
                 {activeProducts.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
@@ -469,7 +464,7 @@ export default function Search() {
                 <button
                   onClick={handleLoadMore}
                   disabled={loading}
-                  className="px-6 py-3 bg-paper border border-line text-ink text-xs font-bold uppercase tracking-wider rounded-lg inline-flex items-center gap-2 hover:bg-stone/50 transition-colors"
+                  className="px-8 py-2.5 border border-line text-ink text-xs font-extrabold uppercase tracking-wider rounded-full inline-flex items-center gap-2 hover:bg-stone transition-colors"
                 >
                   {loading ? 'LOADING...' : 'LOAD MORE'}
                   <ChevronDown className="w-4 h-4" />
@@ -483,18 +478,14 @@ export default function Search() {
 
       </div>
 
-      {/* MOBILE FILTER & SORT SLIDE OVER DRAWER */}
+      {/* MOBILE FILTER DRAWER */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-[100] flex lg:hidden">
-          {/* Backdrop blur overlay */}
           <div
             onClick={() => setIsDrawerOpen(false)}
             className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
           />
-
-          {/* Drawer Content */}
-          <div className="relative w-full max-w-sm bg-paper border-r border-line h-full flex flex-col justify-between shadow-2xl z-10 transition-transform duration-300 animate-slide-in">
-            {/* Header */}
+          <div className="relative w-full max-w-sm bg-paper border-r border-line h-full flex flex-col justify-between shadow-2xl z-10 animate-slide-in">
             <div className="flex justify-between items-center px-6 py-4 border-b border-line">
               <span className="font-extrabold text-xs uppercase text-ink tracking-wider flex items-center gap-2">
                 ⚡ Refine Products
@@ -503,8 +494,6 @@ export default function Search() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Scrollable Filters Block */}
             <div className="flex-1 overflow-y-auto p-6">
               <FiltersContent
                 dbCategories={dbCategories}

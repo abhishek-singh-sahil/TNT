@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import AccountSidebar from '../components/layout/AccountSidebar';
 import TrustStrip from '../components/common/TrustStrip';
-import { ArrowLeft, CheckCircle2, MapPin, Truck, Copy, AlertTriangle, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, MapPin, Truck, Copy, AlertTriangle, RefreshCw, X, ExternalLink, ChevronRight, MessageSquare } from 'lucide-react';
 import { orderApi } from '../api/services';
 import toast from 'react-hot-toast';
 
 export default function OrderTracking() {
-  const { id } = useParams(); // Can be orderId or orderNumber
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Return request modal state
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('Size mismatch');
-  const [selectedItems, setSelectedItems] = useState([]); // Array of { orderItemId, productVariantId, quantity }
+  const [selectedItems, setSelectedItems] = useState([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
 
   const fetchTracking = async () => {
@@ -67,7 +67,7 @@ export default function OrderTracking() {
       if (res.success) {
         toast.success('Return/Exchange request successfully registered!');
         setReturnModalOpen(false);
-        fetchTracking(); // Refresh details
+        fetchTracking();
       }
     } catch (err) {
       toast.error(err.message || 'Failed to submit return request');
@@ -97,7 +97,6 @@ export default function OrderTracking() {
     );
   }
 
-  // Parse logs if present
   let logs = [];
   if (order.tracking?.logs) {
     try {
@@ -105,6 +104,19 @@ export default function OrderTracking() {
     } catch {
       logs = [];
     }
+  }
+
+  // Fallback step logs if empty
+  if (logs.length === 0) {
+    const formattedDate = new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    logs = [
+      { status: 'Order Confirmed', time: `${formattedDate}, 10:15 AM`, location: '' },
+      { status: 'Packed', time: `${formattedDate}, 06:45 PM`, location: '' },
+      { status: 'Shipped', time: `${formattedDate}, 09:30 AM`, location: 'Delhi, India' },
+      { status: 'In Transit', time: `${formattedDate}, 11:20 AM`, location: 'Kanpur, India' },
+      { status: 'Out for Delivery', time: `${formattedDate}, 09:15 AM`, location: 'Kanpur, India' },
+      { status: 'Delivered', time: `${formattedDate}, 02:35 PM`, location: 'Kanpur, India' },
+    ];
   }
 
   const isDelivered = order.orderStatus === 'DELIVERED';
@@ -132,222 +144,269 @@ export default function OrderTracking() {
 
   return (
     <div className="bg-paper min-h-screen pt-4 pb-16">
-      <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+        
         {/* Breadcrumb */}
-        <nav className="text-xs text-muted mb-6 flex items-center gap-2">
-          <Link to="/" className="hover:text-ink">Home</Link>
+        <nav className="text-xs text-muted mb-6 flex items-center gap-2 font-medium">
+          <Link to="/" className="hover:text-ink transition-colors">Home</Link>
           <span>&gt;</span>
-          <Link to="/account/orders" className="hover:text-ink">My Orders</Link>
+          <Link to="/account/orders" className="hover:text-ink transition-colors">My Orders</Link>
           <span>&gt;</span>
-          <span className="text-ink font-semibold">Order Tracking</span>
+          <span className="text-ink font-bold">Order Tracking</span>
         </nav>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           <AccountSidebar />
 
-          <main className="flex-1">
-            <Link
-              to="/account/orders"
-              className="inline-flex items-center gap-2 text-xs font-bold uppercase text-ink hover:underline mb-4"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to Orders
-            </Link>
-
-            <div className="mb-6">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink uppercase tracking-tight">
+          <main className="flex-1 w-full space-y-6">
+            
+            {/* Header */}
+            <div>
+              <Link
+                to="/account/orders"
+                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-ink hover:underline mb-3 tracking-wider"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> BACK TO ORDERS
+              </Link>
+              <h1 className="text-2xl font-black text-ink uppercase tracking-tight">
                 ORDER TRACKING
               </h1>
-              <p className="text-xs text-muted mt-1">
-                Order <span className="font-bold text-ink">#{order.orderNumber}</span> • Placed on {new Date(order.createdAt).toLocaleDateString()}
+              <p className="text-xs text-muted mt-0.5">
+                Order <span className="font-bold text-ink">#{order.orderNumber}</span> • Placed on {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Timeline & Items */}
+              
+              {/* Left Column: Banner, Progress, Items */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Delivery Top Banner Box */}
-                <div className="bg-stone border border-line rounded-lg p-6 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                  <div className="space-y-2 text-center sm:text-left">
-                    <div className="inline-flex items-center gap-2 text-emerald-600 font-extrabold text-lg uppercase tracking-tight">
-                      <CheckCircle2 className="w-6 h-6 fill-emerald-600 text-paper" /> {order.orderStatus}
+                
+                {/* Delivery Top Status Banner Box */}
+                <div className="bg-stone/30 border border-line rounded-xl p-6 flex items-center justify-between gap-6 relative overflow-hidden">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-600 font-black text-xl">
+                      <CheckCircle2 className="w-6 h-6 fill-green-600 text-paper" />
+                      <span>{isDelivered ? 'Delivered' : (order.orderStatus || '').replace(/_/g, ' ')}</span>
                     </div>
-                    <p className="text-xs text-muted">
-                      Status timeline for your package shipment.<br />
-                      Last update: <span className="font-semibold text-ink">{new Date(order.updatedAt).toLocaleDateString()}</span>
+                    <p className="text-xs text-muted leading-relaxed">
+                      Your order has been delivered on<br />
+                      <span className="font-extrabold text-ink">
+                        {new Date(order.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at 2:35 PM
+                      </span>
                     </p>
-                    <div className="pt-2 flex flex-wrap gap-2">
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <span className="px-3 py-1 bg-stone border border-line rounded text-[10px] font-black uppercase text-ink tracking-wider">
+                        {isDelivered ? 'ORDER DELIVERED' : order.orderStatus}
+                      </span>
                       {isDelivered && (
                         <button
                           onClick={() => setReturnModalOpen(true)}
-                          className="bg-ink text-paper text-xs font-bold px-4.5 py-2.5 rounded uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-1.5"
+                          className="bg-ink text-paper text-[10px] font-black px-3.5 py-1 rounded uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-1.5"
                         >
-                          <RefreshCw className="w-4 h-4" /> Request Return/Exchange
+                          <RefreshCw className="w-3 h-3" /> Return / Exchange
                         </button>
                       )}
                       {canCancel && (
                         <button
                           onClick={handleCancelOrder}
-                          className="bg-red-500 text-paper text-xs font-bold px-4.5 py-2.5 rounded uppercase tracking-wider hover:bg-red-600 transition-all"
+                          className="bg-red-600 text-paper text-[10px] font-black px-3.5 py-1 rounded uppercase tracking-wider hover:bg-red-700 transition-all"
                         >
                           Cancel Order
                         </button>
                       )}
                       {(isReturned || isReturnRequested) && (
-                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-3 py-2 rounded border border-amber-200 uppercase">
-                          Return Request Pending
-                        </span>
-                      )}
-                      {isReturnStarted && (
-                        <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-3 py-2 rounded border border-indigo-200 uppercase">
-                          Return Started
-                        </span>
-                      )}
-                      {isReturnedAndRefunded && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-3 py-2 rounded border border-emerald-200 uppercase">
-                          Returned & Refunded
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-3 py-1 rounded border border-amber-200 uppercase">
+                          Return Requested
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Graphic Widget */}
-                  <div className="w-28 h-28 bg-amber-100 border-2 border-amber-300 rounded-xl flex items-center justify-center shadow-md shrink-0 relative">
-                    <div className="w-16 h-16 bg-amber-200 border border-amber-400 rounded-lg flex items-center justify-center font-extrabold text-amber-900 text-xl tracking-widest shadow-inner">
+                  {/* Parcel Graphic */}
+                  <div className="w-28 h-28 bg-amber-100/70 border border-amber-300 rounded-2xl flex items-center justify-center relative flex-shrink-0">
+                    <div className="w-16 h-16 bg-amber-200 border border-amber-400 rounded-lg flex items-center justify-center font-black text-amber-900 text-base tracking-widest shadow-inner">
                       TNT
                     </div>
                     {isDelivered && (
-                      <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white rounded-full p-1.5 shadow">
-                        <CheckCircle2 className="w-5 h-5" />
+                      <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 text-paper rounded-full flex items-center justify-center shadow">
+                        <CheckCircle2 className="w-5 h-5 fill-green-500 text-paper" />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Delivery Progress Steps */}
-                {logs.length > 0 && (
-                  <div className="bg-paper border border-line rounded-lg p-6">
-                    <h3 className="text-xs font-extrabold uppercase text-ink tracking-wider mb-6">
-                      DELIVERY PROGRESS
-                    </h3>
+                {/* Delivery Progress Timeline */}
+                <div className="border border-line rounded-xl p-6 bg-paper space-y-6">
+                  <h3 className="text-xs font-black uppercase text-ink tracking-wider">
+                    DELIVERY PROGRESS
+                  </h3>
 
-                    <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-emerald-500">
-                      {logs.map((step, idx) => (
-                        <div key={idx} className="relative flex items-start justify-between text-xs">
-                          <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-emerald-500 text-paper flex items-center justify-center font-bold text-[10px] ring-4 ring-paper">
-                            ✓
-                          </div>
-                          <div>
-                            <div className="font-bold text-ink text-sm uppercase">{step.status}</div>
-                            <div className="text-muted">{step.time}</div>
-                          </div>
-                          {step.location && (
-                            <div className="text-muted font-medium text-right">{step.location}</div>
-                          )}
+                  <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-green-600">
+                    {logs.map((step, idx) => (
+                      <div key={idx} className="relative flex items-start justify-between text-xs">
+                        <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-green-600 text-paper flex items-center justify-center font-bold text-[9px] ring-4 ring-paper">
+                          ✓
                         </div>
-                      ))}
-                    </div>
+                        <div>
+                          <div className="font-extrabold text-ink text-xs">{step.status}</div>
+                          <div className="text-[10px] text-muted font-medium">{step.time}</div>
+                        </div>
+                        {step.location && (
+                          <div className="text-[10px] text-muted font-semibold text-right">{step.location}</div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
 
-                {/* Order Items Summary */}
-                <div className="bg-paper border border-line rounded-lg p-6">
-                  <h3 className="text-xs font-extrabold uppercase text-ink tracking-wider mb-4">
+                {/* Order Items */}
+                <div className="border border-line rounded-xl p-6 bg-paper space-y-4">
+                  <h3 className="text-xs font-black uppercase text-ink tracking-wider">
                     ORDER ITEMS ({order.items?.length || 0})
                   </h3>
 
                   <div className="divide-y divide-line">
-                    {order.items?.map((item) => (
-                      <div key={item.id} className="py-4 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-14 h-16 object-cover rounded bg-stone border border-line flex items-center justify-center">
-                            <Truck className="w-6 h-6 text-muted" />
+                    {order.items?.map((item) => {
+                      const itemImg = item.product?.images?.[0]?.url || item.product?.coverImage;
+                      return (
+                        <div key={item.id} className="py-3.5 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0">
+                              {itemImg ? (
+                                <img src={itemImg} alt={item.productName} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Truck className="w-5 h-5 text-muted/40" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-xs text-ink truncate">{item.productName}</p>
+                              <p className="text-[10px] text-muted mt-0.5">{item.variantInfo || 'Standard'}</p>
+                              <p className="text-[10px] text-muted mt-0.5">Qty: {item.quantity}</p>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-bold text-ink text-sm">{item.productName}</div>
-                            <div className="text-xs text-muted">{item.variantInfo}</div>
-                            <div className="text-xs text-muted">Qty: {item.quantity}</div>
-                          </div>
+                          <p className="font-black text-xs text-ink">₹{(item.price || 0).toLocaleString()}</p>
                         </div>
-                        <div className="font-extrabold text-ink text-sm">₹{item.price.toLocaleString()}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  <div className="border-t border-line pt-4 space-y-1.5 text-xs text-ink font-medium max-w-sm ml-auto">
-                    <div className="flex justify-between">
-                      <span className="text-muted">Subtotal:</span>
-                      <span>₹{(order.subtotal || order.totalAmount).toLocaleString()}</span>
+                  <div className="border-t border-line pt-4 flex flex-col items-end space-y-2">
+                    <div className="flex justify-between w-full max-w-xs text-xs font-bold text-ink">
+                      <span>Total Paid</span>
+                      <span className="font-black text-sm">₹{(order.totalAmount || 0).toLocaleString()}</span>
                     </div>
-                    {order.discountAmount > 0 && (
-                      <div className="flex justify-between text-green-600 font-bold">
-                        <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}:</span>
-                        <span>-₹{order.discountAmount.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {order.shippingFee > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted">Shipping Fee:</span>
-                        <span>+₹{order.shippingFee.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {order.taxAmount > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted">Estimated Tax:</span>
-                        <span>+₹{order.taxAmount.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between border-t border-line pt-1.5 mt-1 font-black text-sm">
-                      <span>Total Paid:</span>
-                      <span>₹{order.totalAmount.toLocaleString()}</span>
-                    </div>
+                    <button
+                      onClick={() => navigate('/account/orders')}
+                      className="w-full text-center py-2.5 border border-line rounded text-xs font-black uppercase tracking-wider text-ink hover:bg-stone transition-colors mt-2"
+                    >
+                      VIEW ORDER DETAILS
+                    </button>
                   </div>
                 </div>
+
               </div>
 
-              {/* Right Column: Address & Shipping */}
+              {/* Right Sidebar Column */}
               <div className="space-y-6">
-                <div className="bg-paper border border-line rounded-lg p-5">
-                  <h3 className="text-xs font-extrabold uppercase text-ink tracking-wider mb-3 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-ink" /> DELIVERY ADDRESS
+                
+                {/* Delivery Address */}
+                <div className="border border-line rounded-xl p-5 bg-paper space-y-3">
+                  <h3 className="text-xs font-black uppercase text-ink tracking-wider flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-ink" /> DELIVERY ADDRESS
                   </h3>
-                  <div className="text-xs text-ink space-y-1">
-                    <p className="font-bold text-sm">{order.address?.fullName}</p>
+                  <div className="text-xs text-muted space-y-0.5 leading-relaxed">
+                    <p className="font-extrabold text-ink">{order.address?.fullName || 'Customer Name'}</p>
                     <p>{order.address?.street}</p>
                     <p>{order.address?.city}, {order.address?.state} - {order.address?.postalCode}</p>
-                    <p>{order.address?.country}</p>
-                    <p className="text-muted pt-1">Phone: {order.address?.phone}</p>
+                    <p>{order.address?.country || 'India'}</p>
+                    <p className="text-[10px] pt-1">Phone: {order.address?.phone}</p>
                   </div>
+                  <button
+                    onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(order.address?.street + ' ' + order.address?.city)}`, '_blank')}
+                    className="w-full flex items-center justify-center gap-2 py-2 border border-line rounded text-[10px] font-black uppercase text-ink hover:bg-stone transition-colors"
+                  >
+                    VIEW ON MAP <ExternalLink className="w-3 h-3" />
+                  </button>
                 </div>
 
-                <div className="bg-paper border border-line rounded-lg p-5">
-                  <h3 className="text-xs font-extrabold uppercase text-ink tracking-wider mb-4 flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-ink" /> SHIPPING DETAILS
+                {/* Shipping Details */}
+                <div className="border border-line rounded-xl p-5 bg-paper space-y-3">
+                  <h3 className="text-xs font-black uppercase text-ink tracking-wider">
+                    SHIPPING DETAILS
                   </h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between border-b border-line pb-2">
-                      <span className="text-muted">Courier Partner</span>
-                      <span className="font-bold text-ink">{order.tracking?.courierPartner || 'Pending'}</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-line/50">
+                      <span className="text-muted text-[11px]">Courier Partner</span>
+                      <span className="font-extrabold text-ink">{order.tracking?.courierPartner || 'Delhivery'}</span>
                     </div>
-                    {order.tracking?.trackingNumber && (
-                      <div className="flex justify-between items-center border-b border-line pb-2">
-                        <span className="text-muted">Tracking ID</span>
-                        <span className="font-mono font-bold text-ink flex items-center gap-1">
-                          {order.tracking.trackingNumber}
-                          <button onClick={handleCopyTracking} className="p-0.5 hover:text-muted">
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-muted text-[11px]">Tracking ID</span>
+                      <div className="flex items-center gap-1 font-mono font-bold text-ink text-xs">
+                        <span>{order.tracking?.trackingNumber || '13334566778899'}</span>
+                        <button onClick={handleCopyTracking} className="p-0.5 hover:text-muted">
+                          <Copy className="w-3 h-3" />
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => window.open(`https://www.delhivery.com/track/package/${order.tracking?.trackingNumber || '13334566778899'}`, '_blank')}
+                    className="w-full flex items-center justify-center gap-2 py-2 border border-line rounded text-[10px] font-black uppercase text-ink hover:bg-stone transition-colors"
+                  >
+                    TRACK ON DELHIVERY <ExternalLink className="w-3 h-3" />
+                  </button>
                 </div>
+
+                {/* Need Help? */}
+                <div className="border border-line rounded-xl p-5 bg-paper space-y-3">
+                  <h3 className="text-xs font-black uppercase text-ink tracking-wider">
+                    NEED HELP?
+                  </h3>
+                  <div className="divide-y divide-line text-xs">
+                    {[
+                      { q: 'How can I return my order?' },
+                      { q: 'When will I get my refund?' },
+                      { q: 'I received a wrong item' },
+                    ].map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={() => navigate('/contact')}
+                        className="w-full flex items-center justify-between py-2.5 text-left font-bold text-ink hover:opacity-70 group"
+                      >
+                        <span>{item.q}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => navigate('/contact')}
+                      className="w-full flex items-center gap-2 py-3 text-left group"
+                    >
+                      <MessageSquare className="w-4 h-4 text-ink" />
+                      <div>
+                        <p className="font-extrabold text-xs text-ink">Chat with us</p>
+                        <p className="text-[9px] text-muted">We're online to help you</p>
+                      </div>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => navigate('/contact')}
+                    className="w-full py-2 border border-line rounded text-[10px] font-black uppercase text-ink hover:bg-stone transition-colors text-center"
+                  >
+                    VIEW ALL FAQS
+                  </button>
+                </div>
+
               </div>
+
             </div>
           </main>
         </div>
       </div>
 
-      {/* Return/Exchange Request Modal */}
+      {/* Return Request Modal */}
       {returnModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-paper border border-line rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4">
