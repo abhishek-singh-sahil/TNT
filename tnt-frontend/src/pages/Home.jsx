@@ -102,7 +102,7 @@ export default function Home() {
   return (
     <div className="bg-paper min-h-screen pb-16">
       
-      {/* 1. Hero Banner Slider (Upper Text Shifted & Light Clean Mask) */}
+      {/* 1. Hero Banner Slider (Writings Top, Buttons Bottom) */}
       {heroSlides && heroSlides.length > 0 && (
         <section className="relative w-full border-b border-line">
           <Swiper
@@ -110,11 +110,11 @@ export default function Home() {
             autoplay={{ delay: 5000, disableOnInteraction: false }}
             pagination={{ clickable: true }}
             navigation
-            className="h-[460px] sm:h-[500px] lg:h-[540px] w-full"
+            className="h-[480px] sm:h-[500px] lg:h-[540px] w-full"
           >
             {heroSlides.map((slide) => (
               <SwiperSlide key={slide.id}>
-                <div className="relative w-full h-full bg-stone overflow-hidden flex items-start sm:items-center pt-8 sm:pt-0">
+                <div className="relative w-full h-full bg-stone overflow-hidden flex flex-col justify-between py-6 sm:py-8">
                   <img
                     src={slide.image || "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600"}
                     alt={slide.title}
@@ -123,8 +123,9 @@ export default function Home() {
                   {/* Ultra light subtle text backdrop gradient */}
                   <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-paper/60 via-paper/20 to-transparent pointer-events-none" />
 
-                  <div className="max-w-[1400px] mx-auto px-5 sm:px-12 relative z-10 w-full">
-                    <div className="max-w-[310px] sm:max-w-xl text-ink space-y-2 sm:space-y-4">
+                  <div className="max-w-[1400px] mx-auto px-5 sm:px-12 relative z-10 w-full flex-1 flex flex-col justify-between">
+                    {/* TOP: Writings */}
+                    <div className="max-w-[310px] sm:max-w-xl text-ink space-y-2 sm:space-y-3">
                       {slide.subtitle && (
                         <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-muted block">
                           {slide.subtitle}
@@ -149,8 +150,11 @@ export default function Home() {
                         </div>
                         <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-ink">12,000+ Happy Customers</span>
                       </div>
+                    </div>
 
-                      <div className="pt-2 flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                    {/* BOTTOM: Buttons */}
+                    <div className="pt-4 max-w-[310px] sm:max-w-xl">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                         <Link
                           to={slide.link || '/products'}
                           className="px-5 py-3 sm:py-3.5 bg-ink text-paper text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-black transition-colors rounded-xl shadow-xs text-center"
