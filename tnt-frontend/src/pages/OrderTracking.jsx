@@ -268,18 +268,12 @@ export default function OrderTracking() {
 
                   <div className="divide-y divide-line">
                     {order.items?.map((item) => {
-                      const itemImg = item.product?.images?.[0]?.url || item.product?.coverImage;
+                      const itemImg = item.product?.images?.[0]?.url || item.product?.coverImage || item.image || item.productVariant?.image || item.productVariant?.product?.images?.[0]?.url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300';
                       return (
                         <div key={item.id} className="py-3.5 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3.5 min-w-0">
                             <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0">
-                              {itemImg ? (
-                                <img src={itemImg} alt={item.productName} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Truck className="w-5 h-5 text-muted/40" />
-                                </div>
-                              )}
+                              <img src={itemImg} alt={item.productName} className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
                               <p className="font-extrabold text-xs text-ink truncate">{item.productName}</p>
