@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import TrustStrip from '../components/common/TrustStrip';
 import AccountSidebar from '../components/layout/AccountSidebar';
 import { orderApi, addressApi, authApi, marketingApi } from '../api/services';
-import { ShoppingBag, Truck, Heart, Star, Settings, ArrowRight, ChevronRight, HelpCircle, LogIn, Shield, Plus, Trash2, Edit2, User, Mail, Phone, CheckCircle, Copy, AlertTriangle, ChevronLeft, CreditCard, Lock, Tag, MapPin, BookOpen, Bell, Award } from 'lucide-react';
+import { ShoppingBag, Truck, Heart, Star, Settings, ArrowRight, ChevronRight, HelpCircle, LogIn, Shield, Plus, Trash2, Edit2, User, Mail, Phone, CheckCircle, Copy, AlertTriangle, ChevronLeft, CreditCard, Lock, Tag, MapPin, BookOpen, Bell, Award, RotateCcw } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout, updateUser } from '../store/authSlice';
 import { selectCurrencySymbol, selectSettings } from '../store/settingsSlice';
@@ -1059,33 +1059,20 @@ export default function AccountDashboard() {
   };
 
   // Desktop Empty-States / General Dashboard Overview
+  // Desktop Empty-States / General Dashboard Overview
   const renderDashboardOverview = () => {
     const totalOrders = orders.length;
-    const ordersInTransit = orders.filter(o => ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.orderStatus)).length;
+    const ordersInTransit = orders.filter(o => ["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.orderStatus)).length;
     const wishlistCount = wishlistItems.length;
     const rewardPoints = user.rewardPoints || 320;
 
-    // Tier logic: Bronze→Silver@500, Silver→Gold@1000, Gold→Platinum@2000
-    let currentTierName = 'Bronze';
-    let nextTierName = 'Silver Tier';
+    let currentTierName = "Bronze";
+    let nextTierName = "Silver Tier";
     let nextTierTarget = 500;
     let tierStart = 0;
-    if (rewardPoints >= 500 && rewardPoints < 1000) {
-      currentTierName = 'Silver';
-      nextTierName = 'Gold Tier';
-      nextTierTarget = 1000;
-      tierStart = 500;
-    } else if (rewardPoints >= 1000 && rewardPoints < 2000) {
-      currentTierName = 'Gold';
-      nextTierName = 'Platinum Tier';
-      nextTierTarget = 2000;
-      tierStart = 1000;
-    } else if (rewardPoints >= 2000) {
-      currentTierName = 'Platinum';
-      nextTierName = 'VIP Elite';
-      nextTierTarget = 5000;
-      tierStart = 2000;
-    }
+    if (rewardPoints >= 500 && rewardPoints < 1000) { currentTierName = "Silver"; nextTierName = "Gold Tier"; nextTierTarget = 1000; tierStart = 500; }
+    else if (rewardPoints >= 1000 && rewardPoints < 2000) { currentTierName = "Gold"; nextTierName = "Platinum Tier"; nextTierTarget = 2000; tierStart = 1000; }
+    else if (rewardPoints >= 2000) { currentTierName = "Platinum"; nextTierName = "VIP Elite"; nextTierTarget = 5000; tierStart = 2000; }
     const pointsNeeded = Math.max(0, nextTierTarget - rewardPoints);
     const tierRange = nextTierTarget - tierStart;
     const progressPercent = Math.min(100, Math.round(((rewardPoints - tierStart) / tierRange) * 100));
@@ -1093,64 +1080,58 @@ export default function AccountDashboard() {
     const recentOrders = orders.slice(0, 4);
 
     return (
-      <div className="space-y-6 animate-fadeIn bg-paper border border-line rounded-lg p-6 shadow-sm">
+      <div className="space-y-6 animate-fadeIn">
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-line pb-4">
+        <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-lg font-black text-ink">Hey {user.firstName}! 👋</h2>
+            <h2 className="text-xl font-black text-ink">Hey {user.firstName}! 👋</h2>
             <p className="text-xs text-muted mt-0.5">Here's what's happening with your account.</p>
           </div>
-          <button
-            onClick={() => navigate('/account/details')}
-            className="px-3.5 py-2 border border-line text-[10px] font-extrabold uppercase rounded hover:bg-stone text-ink transition-all tracking-wider"
-          >
-            Account Settings
+          <button onClick={() => navigate("/account/details")} className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase text-ink border border-line rounded px-3 py-2 hover:bg-stone transition-all tracking-wider">
+            <Settings className="w-3 h-3" /> ACCOUNT SETTINGS
           </button>
         </div>
 
         {/* 4 KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div onClick={() => navigate('/account/orders')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Total Orders</span>
-              <span className="text-2xl font-black text-ink block">{totalOrders}</span>
-              <span className="text-[10px] font-extrabold text-ink underline">View all orders →</span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div onClick={() => navigate("/account/orders")} className="border border-line rounded-xl p-4 bg-paper flex items-center gap-3 shadow-xs hover:shadow-sm cursor-pointer transition-all">
+            <div className="w-12 h-12 rounded-full bg-stone/80 flex items-center justify-center flex-shrink-0">
+              <ShoppingBag className="w-5 h-5 text-ink" />
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div onClick={() => navigate('/account/orders')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Orders in Transit</span>
-              <span className="text-2xl font-black text-ink block">{ordersInTransit}</span>
-              <span className="text-[10px] font-extrabold text-ink underline">Track your orders →</span>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
-              <Truck className="w-5 h-5" />
+            <div>
+              <p className="text-[9px] font-black text-muted uppercase tracking-wider">TOTAL ORDERS</p>
+              <p className="text-2xl font-black text-ink leading-none my-1">{totalOrders}</p>
+              <p className="text-[10px] font-bold text-ink/70">View all orders →</p>
             </div>
           </div>
-
-          <div onClick={() => navigate('/wishlist')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-muted uppercase tracking-wider block">Wishlist Items</span>
-              <span className="text-2xl font-black text-ink block">{wishlistCount}</span>
-              <span className="text-[10px] font-extrabold text-ink underline">View your wishlist →</span>
+          <div onClick={() => navigate("/account/orders")} className="border border-line rounded-xl p-4 bg-paper flex items-center gap-3 shadow-xs hover:shadow-sm cursor-pointer transition-all">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Truck className="w-5 h-5 text-blue-500" />
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
-              <Heart className="w-5 h-5" />
+            <div>
+              <p className="text-[9px] font-black text-muted uppercase tracking-wider">ORDERS IN TRANSIT</p>
+              <p className="text-2xl font-black text-ink leading-none my-1">{ordersInTransit}</p>
+              <p className="text-[10px] font-bold text-ink/70">Track your orders →</p>
             </div>
           </div>
-
-          <div onClick={() => navigate('/account/rewards')} className="border border-line rounded-xl p-4 bg-stone/5 flex items-center justify-between shadow-xs hover:shadow-sm hover:border-ink/20 transition-all cursor-pointer">
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-muted uppercase tracking-wider block">TNT Club Points</span>
-              <span className="text-2xl font-black text-ink block">{rewardPoints}</span>
-              <span className="text-[10px] font-extrabold text-ink underline">View rewards →</span>
+          <div onClick={() => navigate("/wishlist")} className="border border-line rounded-xl p-4 bg-paper flex items-center gap-3 shadow-xs hover:shadow-sm cursor-pointer transition-all">
+            <div className="w-12 h-12 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0">
+              <Heart className="w-5 h-5 text-pink-500" />
             </div>
-            <div className="w-10 h-10 rounded-lg bg-stone flex items-center justify-center text-ink">
-              <Award className="w-5 h-5" />
+            <div>
+              <p className="text-[9px] font-black text-muted uppercase tracking-wider">WISHLIST ITEMS</p>
+              <p className="text-2xl font-black text-ink leading-none my-1">{wishlistCount}</p>
+              <p className="text-[10px] font-bold text-ink/70">View your wishlist →</p>
+            </div>
+          </div>
+          <div onClick={() => navigate("/account/rewards")} className="border border-line rounded-xl p-4 bg-paper flex items-center gap-3 shadow-xs hover:shadow-sm cursor-pointer transition-all">
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-muted uppercase tracking-wider">TNT CLUB POINTS</p>
+              <p className="text-2xl font-black text-ink leading-none my-1">{rewardPoints}</p>
+              <p className="text-[10px] font-bold text-ink/70">View rewards →</p>
             </div>
           </div>
         </div>
@@ -1158,144 +1139,105 @@ export default function AccountDashboard() {
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Orders */}
-          <div className="lg:col-span-2 border border-line rounded-xl p-5 bg-paper shadow-xs space-y-4">
-            <div className="flex justify-between items-center border-b border-line pb-3">
-              <h3 className="text-xs font-black uppercase text-ink tracking-wider">Recent Orders</h3>
-              <button onClick={() => navigate('/account/orders')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
-                View all orders →
-              </button>
+          <div className="lg:col-span-2">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-black uppercase text-ink tracking-wider">RECENT ORDERS</h3>
+              <button onClick={() => navigate("/account/orders")} className="text-[10px] font-extrabold text-ink hover:opacity-70">View all orders →</button>
             </div>
-            <div className="divide-y divide-line">
-              {recentOrders.length > 0 ? (
-                recentOrders.map(o => {
-                  const firstItem = o.items?.[0] || {};
-                  const itemImage = firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage;
-                  return (
-                    <div key={o.id} className="py-3.5 flex items-center justify-between gap-4 group">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0 shadow-sm">
-                          {itemImage ? (
-                            <img src={itemImage} alt="product" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ShoppingBag className="w-5 h-5 text-muted/40" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-extrabold text-xs text-ink truncate max-w-[160px] sm:max-w-xs">{firstItem.productName || 'Streetwear Item'}</p>
-                          <p className="text-[10px] text-muted font-medium mt-0.5">{firstItem.variantInfo || 'One Size'}</p>
-                          <p className="text-[9px] text-muted mt-0.5">
-                            Order <span className="font-semibold text-ink">#{o.orderNumber}</span> · {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </p>
-                        </div>
+            <div className="divide-y divide-line border border-line rounded-xl overflow-hidden bg-paper">
+              {recentOrders.length > 0 ? recentOrders.map(o => {
+                const firstItem = o.items?.[0] || {};
+                const itemImage = firstItem.product?.images?.[0]?.url || firstItem.product?.coverImage;
+                const statusLabel = o.orderStatus === "DELIVERED" ? "Delivered" : o.orderStatus === "SHIPPED" ? "Shipped" : o.orderStatus === "OUT_FOR_DELIVERY" ? "Out for Delivery" : o.orderStatus === "PROCESSING" ? "Processing" : (o.orderStatus || "").replace(/_/g, " ");
+                const statusColor = o.orderStatus === "DELIVERED" ? "text-green-600" : ["SHIPPED", "IN_TRANSIT"].includes(o.orderStatus) ? "text-blue-600" : o.orderStatus === "OUT_FOR_DELIVERY" ? "text-amber-600" : "text-muted";
+                return (
+                  <div key={o.id} className="px-4 py-3.5 flex items-center justify-between gap-4 hover:bg-stone/20 transition-colors group">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-12 h-14 bg-stone border border-line rounded overflow-hidden flex-shrink-0">
+                        {itemImage ? <img src={itemImage} alt="product" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-4 h-4 text-muted/40" /></div>}
                       </div>
-                      <div className="flex items-center gap-3 text-right flex-shrink-0">
-                        <div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
-                            o.orderStatus === 'DELIVERED' ? 'bg-green-50 text-green-700 border-green-200' :
-                            ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.orderStatus) ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                            'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}>
-                            {(o.orderStatus || '').replace(/_/g, ' ')}
-                          </span>
-                          <p className="font-black text-xs text-ink mt-1">₹{(o.totalAmount || 0).toLocaleString()}</p>
-                        </div>
-                        <Link to={`/account/orders/${o.orderNumber}/track`} className="p-1.5 border border-line rounded hover:bg-stone text-ink transition-colors">
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-xs text-ink truncate max-w-[180px]">{firstItem.productName || "Streetwear Item"}</p>
+                        <p className="text-[10px] text-muted mt-0.5">{firstItem.variantInfo || "One Size"}</p>
+                        <p className="text-[9px] text-muted mt-0.5">Order <span className="font-semibold text-ink">#{o.orderNumber}</span> · {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
                       </div>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="py-12 text-center space-y-2">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-right">
+                        <p className={`text-[11px] font-extrabold ${statusColor}`}>{statusLabel}</p>
+                        <p className="font-black text-xs text-ink mt-0.5">{currencySymbol}{(o.totalAmount || 0).toLocaleString()}</p>
+                      </div>
+                      <Link to={`/account/orders/${o.orderNumber}/track`} className="text-muted hover:text-ink transition-colors"><ChevronRight className="w-4 h-4" /></Link>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="py-12 text-center space-y-2 p-6">
                   <ShoppingBag className="w-7 h-7 mx-auto text-muted/40" />
                   <p className="text-xs text-muted italic">No orders placed yet.</p>
-                  <button onClick={() => navigate('/products')} className="text-xs font-extrabold text-ink underline">Browse Products →</button>
+                  <button onClick={() => navigate("/products")} className="text-xs font-extrabold text-ink underline">Browse Products →</button>
                 </div>
               )}
             </div>
+            {recentOrders.length > 0 && <button onClick={() => navigate("/account/orders")} className="mt-3 text-[10px] font-extrabold text-ink hover:opacity-70">View all orders →</button>}
           </div>
 
-          {/* Progress + Addresses */}
+          {/* Right Column */}
           <div className="space-y-6">
             {/* TNT Club Progress */}
-            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
-              <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
-                <h3 className="text-xs font-black uppercase text-ink tracking-wider">TNT Club Progress</h3>
-                <button onClick={() => navigate('/account/rewards')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
-                  View all rewards →
-                </button>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-black uppercase text-ink tracking-wider">TNT CLUB PROGRESS</h3>
+                <button onClick={() => navigate("/account/rewards")} className="text-[10px] font-extrabold text-ink hover:opacity-70">View all rewards →</button>
               </div>
-              <div className="flex flex-col items-center">
-                {/* Circular ring */}
-                <div className="relative w-32 h-32 flex items-center justify-center mb-4">
-                  <svg viewBox="0 0 112 112" className="w-full h-full -rotate-90">
-                    <circle cx="56" cy="56" r="46" stroke="#E8E8E8" strokeWidth="9" fill="none" />
-                    <circle
-                      cx="56" cy="56" r="46"
-                      stroke="#111111" strokeWidth="9" fill="none"
-                      strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={circumference - (circumference * progressPercent) / 100}
-                      style={{ transition: 'stroke-dashoffset 1s ease' }}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl font-black text-ink leading-none">{rewardPoints}</span>
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-wide mt-0.5">Points</span>
+              <div className="border border-line rounded-xl p-4 bg-paper">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-24 h-24 flex-shrink-0">
+                    <svg viewBox="0 0 112 112" className="w-full h-full -rotate-90">
+                      <circle cx="56" cy="56" r="46" stroke="#E8E8E8" strokeWidth="9" fill="none" />
+                      <circle cx="56" cy="56" r="46" stroke="#111111" strokeWidth="9" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference - (circumference * progressPercent) / 100} style={{ transition: "stroke-dashoffset 1s ease" }} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-black text-ink leading-none">{rewardPoints}</span>
+                      <span className="text-[8px] font-bold text-muted uppercase tracking-wide mt-0.5">Points</span>
+                    </div>
                   </div>
-                </div>
-
-                {/* Tier info */}
-                <div className="w-full text-center space-y-2">
-                  <div className="inline-flex items-center gap-1.5 bg-stone/60 border border-line rounded px-3 py-1">
-                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                    <span className="text-[9px] font-extrabold text-ink uppercase tracking-widest">{currentTierName} Tier</span>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <p className="text-xs font-bold text-ink">You're <span className="font-black">{pointsNeeded}</span> points away from</p>
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                      <span className="text-xs font-black text-ink">{nextTierName}</span>
+                    </div>
+                    <div className="w-full bg-stone rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-ink h-1.5 rounded-full transition-all duration-700" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <p className="text-[9px] text-muted">{rewardPoints}/{nextTierTarget} Points</p>
+                    <p className="text-[9px] text-muted leading-relaxed">Earn points on every purchase and unlock exciting rewards!</p>
                   </div>
-                  <p className="text-xs font-bold text-ink">
-                    You're <span className="font-black">{pointsNeeded}</span> points away from
-                  </p>
-                  <p className="text-xs font-black text-ink uppercase tracking-wider">{nextTierName}</p>
-                  <div className="w-full bg-stone rounded-full h-2 overflow-hidden border border-line mt-2">
-                    <div className="bg-ink h-2 rounded-full transition-all duration-700" style={{ width: `${progressPercent}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[8px] font-bold text-muted uppercase pt-0.5">
-                    <span>{tierStart} pts</span>
-                    <span>{progressPercent}%</span>
-                    <span>{nextTierTarget} pts</span>
-                  </div>
-                  <p className="text-[9px] text-muted mt-1">Earn points on every purchase and unlock exclusive rewards!</p>
                 </div>
               </div>
             </div>
 
             {/* Saved Addresses */}
-            <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
-              <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
-                <h3 className="text-xs font-black uppercase text-ink tracking-wider">Saved Addresses</h3>
-                <button onClick={() => navigate('/account/addresses')} className="text-[10px] font-extrabold text-ink underline hover:opacity-70">
-                  View all →
-                </button>
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-black uppercase text-ink tracking-wider">SAVED ADDRESSES</h3>
+                <button onClick={() => navigate("/account/addresses")} className="text-[10px] font-extrabold text-ink hover:opacity-70">View all addresses →</button>
               </div>
-              <div className="space-y-3">
-                {addresses.length > 0 ? (
-                  addresses.slice(0, 2).map((addr, idx) => (
-                    <div key={addr.id} className="flex gap-2.5 items-start p-3 border border-line rounded-lg bg-stone/5">
-                      <MapPin className="w-3.5 h-3.5 text-muted shrink-0 mt-0.5" />
-                      <div className="text-[10px] min-w-0 text-muted leading-relaxed">
-                        <p className="font-extrabold text-ink text-[11px]">{addr.type}{addr.isDefault ? ' (Default)' : ''}</p>
-                        <p className="font-semibold text-ink mt-0.5">{addr.fullName}</p>
-                        <p>{addr.street}{addr.locality ? `, ${addr.locality}` : ''}</p>
-                        <p>{addr.city}, {addr.state} – {addr.postalCode}</p>
-                      </div>
+              <div className="border border-line rounded-xl overflow-hidden bg-paper divide-y divide-line">
+                {addresses.length > 0 ? addresses.slice(0, 2).map((addr) => (
+                  <div key={addr.id} className="flex items-start gap-3 px-4 py-3.5">
+                    <MapPin className="w-4 h-4 text-muted flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-extrabold text-ink">{addr.type}{addr.isDefault ? " (Default)" : ""}</p>
+                      <p className="text-[10px] text-muted mt-0.5 leading-relaxed">{addr.fullName}, {addr.street}{addr.locality ? `, ${addr.locality}` : ""}, {addr.city}, {addr.state} – {addr.postalCode}</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 space-y-2">
+                    <button className="text-muted hover:text-ink text-lg leading-none flex-shrink-0 mt-0.5">⋮</button>
+                  </div>
+                )) : (
+                  <div className="py-6 text-center space-y-2 p-4">
                     <p className="text-[11px] text-muted italic">No addresses saved yet.</p>
-                    <button onClick={() => navigate('/account/addresses')} className="text-[10px] font-extrabold text-ink underline">Add an address →</button>
+                    <button onClick={() => navigate("/account/addresses")} className="text-[10px] font-extrabold text-ink underline">Add an address →</button>
                   </div>
                 )}
               </div>
@@ -1303,66 +1245,63 @@ export default function AccountDashboard() {
           </div>
         </div>
 
-        {/* Recently Viewed */}
-        <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
-          <div className="flex justify-between items-center border-b border-line pb-3 mb-4">
-            <h3 className="text-xs font-black uppercase text-ink tracking-wider">Recently Viewed</h3>
-            <Link to="/products" className="text-[10px] font-extrabold text-ink underline hover:opacity-70">View all →</Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            {[
-              { name: 'Oversized Minimal Tee', price: '₹1,499', img: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300' },
-              { name: 'Essential Beige Hoodie', price: '₹2,199', img: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=300' },
-              { name: 'Signature Back Print Tee', price: '₹1,649', img: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=300' },
-              { name: 'TNT Classic Cap', price: '₹899', img: 'https://images.unsplash.com/photo-1534215754734-18e55d13ce35?w=300' },
-              { name: 'TNT Tote Bag', price: '₹1,299', img: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=300' },
-              { name: 'TNT Cargo Pants', price: '₹2,499', img: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300' },
-            ].map((p, idx) => (
-              <Link to="/products" key={idx} className="border border-line rounded-lg p-2 bg-stone/5 flex flex-col group hover:shadow-md transition-shadow">
-                <div className="aspect-[4/5] bg-stone rounded overflow-hidden">
-                  <img src={p.img} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
-                <div className="mt-1.5 text-[10px]">
-                  <p className="font-extrabold text-ink truncate leading-snug">{p.name}</p>
-                  <p className="font-black text-ink mt-0.5">{p.price}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Need Help + Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-2 border border-line rounded-xl p-6 bg-paper shadow-xs flex flex-col items-center text-center justify-center space-y-3">
-            <HelpCircle className="w-8 h-8 text-muted/60" />
-            <h4 className="font-extrabold text-sm text-ink">Need Help?</h4>
-            <p className="text-xs text-muted max-w-sm">Our team is here to assist with size selection, exchanges, order tracing, or anything else you need.</p>
-            <button
-              onClick={() => navigate('/account/customercare')}
-              className="px-5 py-2.5 bg-ink text-paper text-xs font-bold uppercase rounded-lg hover:bg-ink/90 tracking-wider transition-all"
-            >
-              Contact Support
-            </button>
-          </div>
-
-          <div className="border border-line rounded-xl p-5 bg-paper shadow-xs">
-            <h3 className="text-xs font-black uppercase text-ink tracking-wider border-b border-line pb-3 mb-4">Quick Actions</h3>
-            <div className="space-y-0 divide-y divide-line">
+        {/* Recently Viewed + Need Help */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recently Viewed */}
+          <div className="lg:col-span-2">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-black uppercase text-ink tracking-wider">RECENTLY VIEWED</h3>
+              <Link to="/products" className="text-[10px] font-extrabold text-ink hover:opacity-70">View all →</Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
               {[
-                { label: 'Track recent order', path: '/account/orders' },
-                { label: 'Request a return', path: '/account/returns' },
-                { label: 'Contact Customer Care', path: '/account/customercare' },
-                { label: 'View TNT Club Rewards', path: '/account/rewards' },
-              ].map((item, i) => (
-                <button
-                  key={i}
-                  onClick={() => navigate(item.path)}
-                  className="flex items-center justify-between w-full text-xs font-extrabold text-ink hover:opacity-70 transition-opacity text-left py-3 group"
-                >
-                  <span>{item.label}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                { name: "Oversized Minimal Tee", price: "₹1,499", img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300" },
+                { name: "Essential Beige Hoodie", price: "₹2,199", img: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=300" },
+                { name: "Signature Back Print Tee", price: "₹1,649", img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=300" },
+                { name: "TNT Classic Cap", price: "₹899", img: "https://images.unsplash.com/photo-1534215754734-18e55d13ce35?w=300" },
+                { name: "TNT Tote Bag", price: "₹1,299", img: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=300" },
+                { name: "TNT Cargo Pants", price: "₹2,499", img: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=300" },
+              ].map((p, idx) => (
+                <Link to="/products" key={idx} className="flex-shrink-0 w-[120px] group">
+                  <div className="relative aspect-[3/4] bg-stone rounded-lg overflow-hidden border border-line">
+                    <img src={p.img} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <button className="absolute top-2 right-2 w-6 h-6 rounded-full bg-paper/90 flex items-center justify-center" onClick={e => e.preventDefault()}>
+                      <Heart className="w-3 h-3 text-ink" />
+                    </button>
+                  </div>
+                  <div className="mt-1.5">
+                    <p className="text-[10px] font-bold text-ink truncate leading-snug">{p.name}</p>
+                    <p className="text-[10px] font-black text-ink">{p.price}</p>
+                  </div>
+                </Link>
               ))}
+            </div>
+          </div>
+
+          {/* Need Help */}
+          <div>
+            <h3 className="text-xs font-black uppercase text-ink tracking-wider mb-4">NEED HELP?</h3>
+            <div className="border border-line rounded-xl overflow-hidden bg-paper divide-y divide-line">
+              {[
+                { icon: Truck, label: "Track your order", sub: "Real-time order tracking", path: "/account/orders" },
+                { icon: RotateCcw, label: "Returns & exchanges", sub: "Easy returns in 14 days", path: "/account/returns" },
+                { icon: HelpCircle, label: "Help center", sub: "Find answers to common questions", path: "/account/customercare" },
+                { icon: Mail, label: "Contact us", sub: "We're here to help you", path: "/contact" },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <button key={i} onClick={() => navigate(item.path)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-stone/20 transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-stone/60 flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-3.5 h-3.5 text-ink" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-extrabold text-ink">{item.label}</p>
+                      <p className="text-[10px] text-muted">{item.sub}</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
